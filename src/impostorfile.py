@@ -18,7 +18,10 @@ import PIL.Image
 
 #   Useful functions
 
-def _insetrect(rect, insetwidth) :
+def countrect(rect) :
+    count = (1+rect[2]-rect[0]) * (1+rect[3]-rect[1])
+
+def insetrect(rect, insetwidth) :
     '''
     Rectangle inset insetwidth into rect
     '''
@@ -106,23 +109,21 @@ class ImpostorFile:
         return (color, stddev)
         
         
-    def _combineuniformity(self, u1, u2) :
+    def _combineuniformity(self, ua, ub) :
         '''
         Combine uniformity values for rectangles.
         '''
-        uchans = []
-        for i in range(length(u1)) :
-            u1chan = (u1[0][i], u1[1][i], u1[2][i])     # one channel of (count, mean, stddev)
-            u2chan = (u1[0][i], u1[1][i], u1[2][i])
-            uchans.append(combinestddev(u1chan, u2chan))
-        return(uchans)                                  # same format as input
+        return [combinestddev(                          # returns list by colorchan of (count, mean, stddev)
+            (ua[0][i], ua[1][i], ua[2][i]),
+            (ub[0][i], ub[1][i], ub[2][i]))
+            for i in range(length(u1))]
         
     def _rectuniformity(self, rect) :
         '''
         Run the uniformity test on a rectangle.
         '''
-        croppedrgb = self.inputrgb.crop(rect)
-        count = croppedrgb.count()                      # n number of pixels (3-tuple)
+        croppedrgb = self.inputrgb.crop(rect)           # extract rectangle of interest
+        count = countrect(rect)                         # n number of pixels (3-tuple)
         mean = croppedrgb.mean()                        # μ average of pixels (3-tuple)
         stddev = croppedrgb.stddev()                    # σ stddev of pixels (3-tuple)
         return(count, mean, stddev)
