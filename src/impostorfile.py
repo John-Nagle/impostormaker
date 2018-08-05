@@ -27,10 +27,39 @@ class ImpostorFile:
         self.filename = filename                        # the filename
         self.inputimg = None                            # input image object
         
-    def readimage(self) :                               # read in image
+    def readimage(self) :                               
+        '''
+        Read image from file
+        '''
         self.inputimg = PIL.Image.open(self.filename)
         
-    def show(self) :                                    # show for debug purposes
+    def show(self) :                                    
+        '''
+        Show image for debug purposes
+        '''
         if self.inputimg :
             self.inputimg.show()                        # display for debug
+            
+    def findframe(self) :
+        '''
+        Find boundaries of a uniform colored frame around the image
+        
+        Raises exception if no reasonable frame
+        '''
+        pass                                            # ***MORE***
+        
+    def _frameuniformity(rect, testwidth) :
+        '''
+        Input is (ulx, uly, llx, lly) tuple.
+        
+        Output is (uniformity, color)
+        '''
+        pass
+        
+    def _rectuniformity(rect, testwidth, color=None) :
+        '''
+        Run the uniformity test on a rectangle.
+        Check against color if provided.
+        '''
+        pass
 
