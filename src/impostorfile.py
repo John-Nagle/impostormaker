@@ -94,15 +94,30 @@ class ImpostorFile:
         rect1 = (innerrect[3], innerrect[1], rect[2], rect[3])  # right
         rect2 = (rect[0], innerrect[3], innerrect[2], rect[3])  # bottom
         rect3 = (rect[0], rect[1], innerrect[0], innerrect[3])  # left
-        sd0 = _rectstddev(rect0)
-        sd1 = _rectstddev(rect1)
-        sd2 = _rectstddev(rect2)
-        sd3 = _rectstddev(rect3)
+        sd0 = _rectuniformity(rect0)
+        sd1 = _rectuniformity(rect1)
+        sd2 = _rectuniformity(rect2)
+        sd3 = _rectuniformity(rect3)
+        #    Combine uniformity data
+        uchans = combineuniformity(combineuniformity(combineuniformity(sd0,sd1),sd2),sd3)
+        (counts, means, stddevs) = uchans
+        color = means                                   # mean color
+        stddev = avg(stddevs)                           # std dev from that color
+        return (color, stddev)
         
-            
-        pass # ***MORE***
         
-    def _rectstddev(self, rect) :
+    def _combineuniformity(self, u1, u2) :
+        '''
+        Combine uniformity values for rectangles.
+        '''
+        uchans = []
+        for i in range(length(u1)) :
+            u1chan = (u1[0][i], u1[1][i], u1[2][i])     # one channel of (count, mean, stddev)
+            u2chan = (u1[0][i], u1[1][i], u1[2][i])
+            uchans.append(combinestddev(u1chan, u2chan))
+        return(uchans)                                  # same format as input
+        
+    def _rectuniformity(self, rect) :
         '''
         Run the uniformity test on a rectangle.
         '''
@@ -110,9 +125,5 @@ class ImpostorFile:
         count = croppedrgb.count()                      # n number of pixels (3-tuple)
         mean = croppedrgb.mean()                        # μ average of pixels (3-tuple)
         stddev = croppedrgb.stddev()                    # σ stddev of pixels (3-tuple)
-        devr = (count[0],mean[0],stddev[0])
-        devg = (count[1],mean[1],stddev[1])
-        devb = (count[2],mean[2],stddev[2])
-        #   ***WRONG*** must not combine colors yet
-        return(combinestddev(combinestddev(devr,devg),devb)) # combine all 3 color channels
+        return(count, mean, stddev)
 
