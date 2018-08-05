@@ -22,16 +22,7 @@ import argparse
 import glob
 import PIL
 import PIL.Image
-
-class ImpostorFile:
-
-    def __init__(self, impostor, filename) :
-        self.impostor = impostor                        # parent object
-        self.filename = filename                        # the filename
-        self.inputimg = None                            # input image object
-        
-    def readimage(self) :                               # read in image
-        self.inputimg = PIL.Image.open(self.filename)
+import impostorfile
 
 class Impostor :
 
@@ -45,7 +36,7 @@ class Impostor :
     #   Read in all files
     def readfiles(self) :
         for name in self.filenames :
-            ifile = ImpostorFile(self, name)            # object for this input image
+            ifile = impostorfile.ImpostorFile(self, name)            # object for this input image
             ifile.readimage()                           # read the image
             if self.options.verbose :
                 ifile.inputimg.show()                   # show image if verbose
