@@ -39,8 +39,9 @@ class Impostor :
             ifile = impostorfile.ImpostorFile(self, name)            # object for this input image
             ifile.readimage()                           # read the image
             if self.options.verbose :
-                ifile.show()                            # show image if verbose
+                ####ifile.show()                            # show image if verbose
                 ifile.testsweeps()
+                return                                  # ***TEMP***
             self.impostorfiles.append(ifile)            # accumulate image objects
             
         

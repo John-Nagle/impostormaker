@@ -90,9 +90,11 @@ class ImpostorFile:
         '''
         Sweep across the image horizontally in bands and return
         the standard deviation for each band. 
+        
+        The bottom pixel is bottom-1, i.e. top=0, bottom=10 means 0..9
         '''
-        imgrect = self.inputimg.getbbox()                    # bounds of image
-        return [self._rectuniformity((x, top, x+width-1, bottom)) for x in range(imgrect[0], imgrect[2]-width-1, width)]
+        imgrect = self.inputrgb.getbbox()                    # bounds of image
+        return [self._rectuniformity((x, top, x+width, bottom)) for x in range(imgrect[0], imgrect[2]-width, width)]
             
         
     def sweepv(self, left, right, height) :
@@ -100,14 +102,14 @@ class ImpostorFile:
         Sweep across the image horizontally in bands and return
         the standard deviation for each band. 
         '''
-        imgrect = self.inputimg.getbbox()                    # bounds of image
-        return [self._rectuniformity((left, y, right, y+height-1)) for y in range(imgrect[1], imgrect[3]-height-1, height)]
+        imgrect = self.inputrgb.getbbox()                    # bounds of image
+        return [self._rectuniformity((left, y, right, y+height)) for y in range(imgrect[1], imgrect[3]-height, height)]
         
     def testsweeps(self) :
         '''
         Test and dump for sweep
         '''
-        imgrect = self.inputimg.getbbox()                    # bounds of image
+        imgrect = self.inputrgb.getbbox()                    # bounds of image
         (left, top, bottom, right) = imgrect
         height = bottom-top+1
         scantop = top + int(height/4)                   # scan the middle half of the image
@@ -165,6 +167,7 @@ class ImpostorFile:
         '''
         print(rect) # ***TEMP***
         croppedrgb = self.inputrgb.crop(rect)           # extract rectangle of interest
+        croppedrgb.show()                               # ***TEMP***
         stats = PIL.ImageStat.Stat(croppedrgb)          # image statistics
         return(stats.count, stats.mean, stats.stddev)
 
