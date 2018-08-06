@@ -15,7 +15,7 @@
 #
 import PIL
 import PIL.Image
-import PIL.Image.Stat
+import PIL.ImageStat
 
 #   Useful functions
 
@@ -110,8 +110,8 @@ class ImpostorFile:
         imgrect = self.inputimg.getbbox()                    # bounds of image
         (left, top, bottom, right) = imgrect
         height = bottom-top+1
-        scantop = top + height/4                        # scan the middle half of the image
-        scanbot = bottom - height/4
+        scantop = top + int(height/4)                   # scan the middle half of the image
+        scanbot = bottom - int(height/4)
         width = 10                                      # band width 10 pixels
         print("Test horizontal sweep")
         scanres = self.sweeph(scantop, scanbot, width)
@@ -163,10 +163,8 @@ class ImpostorFile:
         '''
         Run the uniformity test on a rectangle.
         '''
+        print(rect) # ***TEMP***
         croppedrgb = self.inputrgb.crop(rect)           # extract rectangle of interest
-        count = croppedrgb.count()
-        count = countrect(rect)                         # n number of pixels (3-tuple)
-        mean = croppedrgb.mean()                        # μ average of pixels (3-tuple)
-        stddev = croppedrgb.stddev()                    # σ stddev of pixels (3-tuple)
-        return(count, mean, stddev)
+        stats = PIL.ImageStat.Stat(croppedrgb)          # image statistics
+        return(stats.count, stats.mean, stats.stddev)
 
