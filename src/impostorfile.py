@@ -21,11 +21,11 @@ import PIL.Image
 def countrect(rect) :
     count = (1+rect[2]-rect[0]) * (1+rect[3]-rect[1])
 
-def insetrect(rect, insetwidth) :
+def insetrect(rect, inset) :
     '''
-    Rectangle inset insetwidth into rect
+    Rectangle bounds inset into rect
     '''
-    insetrect = (rect[0] + insetwidth, rect[1] + insetwidth, rect[2] - insetwidth, rect[3] - insetwidth)
+    insetrect = (rect[0] + inset, rect[1] + inset, rect[2] - inset, rect[3] - inset)
     if insetrect[0] >= insetrect[2] or insetrect[1] >= insetrect[3] :   # if degenerate
         return None
     if insetrect[0] >= rect[2] or insetrect[2] <= rect[0] or insetrect[1] >= rect[3] or insetrect[3] <= rect[1] :
@@ -33,7 +33,7 @@ def insetrect(rect, insetwidth) :
     return(insetrect)
 
 
-def combinestddev(s1, s2) :
+def combinestddev(x, y) :
     """
     Combine standard deviations. 
     Each input is (count, mean, stddev)
@@ -42,7 +42,14 @@ def combinestddev(s1, s2) :
     Formula from
     https://en.wikipedia.org/wiki/Pooled_variance#Pooled_standard_deviation
     """
-    pass    # ***MORE***
+    (nx, ux, sx) = x                # count, mean, std dev
+    (ny, uy, sy) = y
+    n = nx + ny                     # total count
+    if n <= 0 :                     # avoid divide by zero for empty case
+        return (0,0.0,0.0)
+    u = (nx*ux + ny*uy) / n         # average
+    ssq = ((nx*ux*ux) + (ny*uy*uy))/n + ((nx*ny)/(n*n))*(ux-uy)*(ux-uy) # square of standard dev
+    return (n, u, math.sqrt(ssq))   # return n, mean, standard dev
 
 class ImpostorFile:
 
@@ -77,6 +84,39 @@ class ImpostorFile:
         Raises exception if no reasonable frame
         '''
         pass                                            # ***MORE***
+        
+    def sweeph(self, top, bottom, width) :
+        '''
+        Sweep across the image horizontally in bands and return
+        the standard deviation for each band. 
+        '''
+        imgrect = self.inputimg.getbbox()                    # bounds of image
+        return [self._rectuniformity((x, top, x+width-1, bottom)) for x in range(imgrect[0], imgrect[2]-width-1, width)]
+            
+        
+    def sweepv(self, left, right, height) :
+        '''
+        Sweep across the image horizontally in bands and return
+        the standard deviation for each band. 
+        '''
+        imgrect = self.inputimg.getbbox()                    # bounds of image
+        return [self._rectuniformity((left, y, right, y+height-1)) for y in range(imgrect[1], imgrect[3]-height-1, height)]
+        
+    def testsweeps(self) :
+        '''
+        Test and dump for sweep
+        '''
+        imgrect = self.inputimg.getbbox()                    # bounds of image
+        (left, top, bottom, right) = imgrect
+        height = bottom-top+1
+        scantop = top + height/4                        # scan the middle half of the image
+        scanbot = bottom - height/4
+        width = 10                                      # band width 10 pixels
+        print("Test horizontal sweep")
+        scanres = self.sweeph(scantop, scanbot, width)
+        for i in range(len(scanres)) :
+            print(scanres[i])
+        print("")
        
         
     def _frameuniformity(self, rect, insetwidth) :
@@ -84,7 +124,7 @@ class ImpostorFile:
         Measure uniformity for a frame whose outside is "rect" and
         whose thickness is "insetwidth".
         
-        Input is (ulx, uly, llx, lly) tuple.
+        Input is (ulx, uly, lrx, lry) tuple.
         
         Output is (uniformity, color)
         '''
