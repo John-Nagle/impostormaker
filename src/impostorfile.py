@@ -68,8 +68,9 @@ class ImpostorFile:
         '''
         Read image from file
         '''
-        self.inputimg = PIL.Image.open(self.filename, mode="r")
+        self.inputimg = PIL.Image.open(self.filename)
         self.inputrgb = self.inputimg.convert(mode="RGB")  # we want to work on this as RGB
+        ####self.inputrgb = self.inputimg # ***TEMP***
         
     def show(self) :                                    
         '''
@@ -107,18 +108,25 @@ class ImpostorFile:
         
     def testsweeps(self) :
         '''
-        Test and dump for sweep
+        Test and dump for sweep. Debug use only.
         '''
-        imgrect = self.inputrgb.getbbox()                    # bounds of image
-        (left, top, bottom, right) = imgrect
+        imgrect = self.inputrgb.getbbox()                   # bounds of image
+        (left, top, right, bottom) = imgrect
         height = bottom-top+1
-        scantop = top + int(height/4)                   # scan the middle half of the image
+        scantop = top + int(height/4)                       # scan the middle half of the image
         scanbot = bottom - int(height/4)
-        width = 10                                      # band width 10 pixels
+        width = 10                                          # band width 10 pixels
         print("Test horizontal sweep")
         scanres = self.sweeph(scantop, scanbot, width)
         for i in range(len(scanres)) :
-            print(scanres[i])
+            print(scanres[i])        
+        print("")
+        print("Test vertical sweep")
+        scanleft = left + int(width/4)
+        scanright = right -int(width/4)
+        scanres = self.sweepv(scanleft, scanright, width)
+        for i in range(len(scanres)) :
+            print(scanres[i])        
         print("")
        
         
@@ -165,9 +173,8 @@ class ImpostorFile:
         '''
         Run the uniformity test on a rectangle.
         '''
-        print(rect) # ***TEMP***
         croppedrgb = self.inputrgb.crop(rect)           # extract rectangle of interest
-        croppedrgb.show()                               # ***TEMP***
+        ####croppedrgb.show()                               # ***TEMP***
         stats = PIL.ImageStat.Stat(croppedrgb)          # image statistics
         return(stats.count, stats.mean, stats.stddev)
 
