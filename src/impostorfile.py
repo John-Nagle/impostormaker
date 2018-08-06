@@ -15,6 +15,7 @@
 #
 import PIL
 import PIL.Image
+import PIL.Image.Stat
 
 #   Useful functions
 
@@ -163,6 +164,7 @@ class ImpostorFile:
         Run the uniformity test on a rectangle.
         '''
         croppedrgb = self.inputrgb.crop(rect)           # extract rectangle of interest
+        count = croppedrgb.count()
         count = countrect(rect)                         # n number of pixels (3-tuple)
         mean = croppedrgb.mean()                        # μ average of pixels (3-tuple)
         stddev = croppedrgb.stddev()                    # σ stddev of pixels (3-tuple)
