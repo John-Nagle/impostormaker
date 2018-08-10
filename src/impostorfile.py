@@ -54,27 +54,28 @@ def combinestddev(x, y) :
     Formula from
     https://en.wikipedia.org/wiki/Pooled_variance#Pooled_standard_deviation
     """
-    ####print("combinestddev: ", x, y); # ***TEMP***
     (nx, ux, sx) = x                # count, mean, std dev
     (ny, uy, sy) = y
     n = nx + ny                     # total count
     if n <= 0 :                     # avoid divide by zero for empty case
         return (0,0.0,0.0)
     u = (nx*ux + ny*uy) / n         # average
-    ####ssq = ((nx*ux*ux) + (ny*uy*uy))/n + ((nx*ny)/(n*n))*(ux-uy)*(ux-uy) # square of standard dev ***WRONG***
     ssq = ((nx*sx*sx) + (ny*sy*sy))/n + ((nx*ny)/(n*n))*(ux-uy)*(ux-uy) # square of standard dev
-    print("combinestddev: ", x, y, " -> ",(n,u,math.sqrt(ssq))); # ***TEMP***
+    ####print("combinestddev: ", x, y, " -> ",(n,u,math.sqrt(ssq))); # ***TEMP***
     return (n, u, math.sqrt(ssq))   # return n, mean, standard dev
     
 def combineuniformity(ua, ub) :
     '''
     Combine uniformity values for rectangles.
     '''
-    print("combineuniformity: ",ua,ub)  # ***TEMP***
-    return [combinestddev(                          # returns list by colorchan of (count, mean, stddev)
+    unif =  [combinestddev(                         # returns list by colorchan of (count, mean, stddev)
         (ua[0][i], ua[1][i], ua[2][i]),
         (ub[0][i], ub[1][i], ub[2][i]))
         for i in range(len(ua))]
+    unif = [(unif[0][i], unif[1][i], unif[2][i]) for i in range(len(unif))] # transpose
+    ####print("combineuniformity: ",ua,ub, " -> ", unif)  # ***TEMP***
+    return unif
+
 
 
 class ImpostorFile:
@@ -189,10 +190,10 @@ class ImpostorFile:
             return None
         # Validate frame
         sweptrect = (xleft, ytop, xright, ybot)
-        (uniformity, color) = self._frameuniformity(sweptrect, thickness)
-        print("Frame color: ",uniformity, "Uniformity: ",color)       
-        croppedrgb = self.inputrgb.crop(sweptrect)           # extract rectangle of interest
-        croppedrgb.show()                                   # ***TEMP***
+        (color, uniformity) = self._frameuniformity(sweptrect, thickness)
+        print("Frame color: ",color, "Uniformity: ",uniformity)       
+        ####croppedrgb = self.inputrgb.crop(sweptrect)           # extract rectangle of interest
+        ####croppedrgb.show()                                   # ***TEMP***
        
         
     def _frameuniformity(self, rect, insetwidth) :
@@ -213,7 +214,7 @@ class ImpostorFile:
         rect1 = (innerrect[2], innerrect[1], rect[2], rect[3])  # right
         rect2 = (rect[0], innerrect[3], innerrect[2], rect[3])  # bottom
         rect3 = (rect[0], rect[1], innerrect[0], innerrect[3])  # left
-        self.inputrgb.crop(rect1).show()    # ***TEMP***
+        ####self.inputrgb.crop(rect1).show()    # ***TEMP***
         sd0 = self._rectuniformity(rect0)
         sd1 = self._rectuniformity(rect1)
         sd2 = self._rectuniformity(rect2)
@@ -226,11 +227,8 @@ class ImpostorFile:
         uchans = combineuniformity(combineuniformity(combineuniformity(sd0,sd1),sd2),sd3)
         print("uchans: ", uchans) # ***TEMP***
         (counts, means, stddevs) = uchans
-        ####color = means                                   # mean color
-        count = counts[0]
-        color = (means[0]/count, means[1]/count, means[2]/count)
         stddev = sum(stddevs) / len(stddevs)            # std dev from that color
-        return (color, stddev)       
+        return (means, stddev)       
         
     def _rectuniformity(self, rect) :
         '''
