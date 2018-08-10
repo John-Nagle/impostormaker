@@ -54,6 +54,7 @@ def combinestddev(x, y) :
     Formula from
     https://en.wikipedia.org/wiki/Pooled_variance#Pooled_standard_deviation
     """
+    print("combinestddev: ", x, y); # ***TEMP***
     (nx, ux, sx) = x                # count, mean, std dev
     (ny, uy, sy) = y
     n = nx + ny                     # total count
@@ -62,6 +63,17 @@ def combinestddev(x, y) :
     u = (nx*ux + ny*uy) / n         # average
     ssq = ((nx*ux*ux) + (ny*uy*uy))/n + ((nx*ny)/(n*n))*(ux-uy)*(ux-uy) # square of standard dev
     return (n, u, math.sqrt(ssq))   # return n, mean, standard dev
+    
+def combineuniformity(ua, ub) :
+    '''
+    Combine uniformity values for rectangles.
+    '''
+    print("combineuniformity: ",ua,ub)  # ***TEMP***
+    return [combinestddev(                          # returns list by colorchan of (count, mean, stddev)
+        (ua[0][i], ua[1][i], ua[2][i]),
+        (ub[0][i], ub[1][i], ub[2][i]))
+        for i in range(len(ua))]
+
 
 class ImpostorFile:
 
@@ -119,7 +131,8 @@ class ImpostorFile:
             stddev = sum(stddevs) / 3                       # std dev of all 3 colors
             if stddev < beststddev :                        # new winner
                 bestx = x
-                beststdddev = stddev
+                beststddev = stddev
+                print("Best stddev x: ",x,beststddev)       # ***TEMP***
         return bestx                                        # winner, or none
                 
     def sweepv(self, left, right, ystart, yend, thickness, colorrange) :
@@ -144,7 +157,7 @@ class ImpostorFile:
             stddev = sum(stddevs) / 3                       # std dev of all 3 colors
             if stddev < beststddev :                        # new winner
                 besty = y
-                beststdddev = stddev
+                beststddev = stddev
         return besty                                        # winner, or none
                 
      
@@ -161,19 +174,23 @@ class ImpostorFile:
         scanbot = bottom - int(height/4)
         scanleft = left + int(width/4)
         scanright = right - int(width/4)
-        thickness = 5                                       # minimum frame width
-        print("Test horizontal sweeps")
+        thickness = 10 ### 5                                       # minimum frame width
+        print("Test sweeps")
         xleft = self.sweeph(scantop, scanbot, left, int((left+right)/2), thickness, REDRANGE)
         xright = self.sweeph(scantop, scanbot, right, int((left+right)/2), thickness, REDRANGE)
         print("X frame limits: ", xleft, xright)
-        print("Test vertical sweeps")
         ytop = self.sweepv(scanleft, scanright, top, int((top+bottom)/2), thickness, REDRANGE)
         ybot = self.sweepv(scanleft, scanright, bottom, int((top+bottom)/2), thickness, REDRANGE)
         print("Y frame limits: ", ytop, ybot)
-        if (xright is not None and xleft is not None and ytop is not None and ybot is not None) :
-            viewrect = (xleft, ytop, xright, ybot)
-            croppedrgb = self.inputrgb.crop(viewrect)           # extract rectangle of interest
-            croppedrgb.show()                                   # ***TEMP***
+        if not (xright is not None and xleft is not None and ytop is not None and ybot is not None) :
+            print("Failed to find frame limits.")
+            return None
+        # Validate frame
+        sweptrect = (xleft, ytop, xright, ybot)
+        (uniformity, color) = self._frameuniformity(sweptrect, thickness)
+        print("Frame color: ",uniformity, "Uniformity: ",color)       
+        croppedrgb = self.inputrgb.crop(sweptrect)           # extract rectangle of interest
+        croppedrgb.show()                                   # ***TEMP***
        
         
     def _frameuniformity(self, rect, insetwidth) :
@@ -183,7 +200,7 @@ class ImpostorFile:
         
         Input is (ulx, uly, lrx, lry) tuple.
         
-        Output is (uniformity, color)
+        Output is (color, uniformity)
         '''
         #   Compute four non-overlapping rectangles that form the
         #   frame and combine them.
@@ -191,29 +208,27 @@ class ImpostorFile:
         if innerrect is None :                          # degenerate
             return(None)
         rect0 = (innerrect[0], rect[1], rect[2], innerrect[1])  # top
-        rect1 = (innerrect[3], innerrect[1], rect[2], rect[3])  # right
+        rect1 = (innerrect[2], innerrect[1], rect[2], rect[3])  # right
         rect2 = (rect[0], innerrect[3], innerrect[2], rect[3])  # bottom
         rect3 = (rect[0], rect[1], innerrect[0], innerrect[3])  # left
-        sd0 = _rectuniformity(rect0)
-        sd1 = _rectuniformity(rect1)
-        sd2 = _rectuniformity(rect2)
-        sd3 = _rectuniformity(rect3)
+        self.inputrgb.crop(rect1).show()    # ***TEMP***
+        sd0 = self._rectuniformity(rect0)
+        sd1 = self._rectuniformity(rect1)
+        sd2 = self._rectuniformity(rect2)
+        sd3 = self._rectuniformity(rect3)
+        print("sd0: ",sd0)  # ***TEMP***
+        print("sd1: ",sd1)  # ***TEMP***
+        print("sd2: ",sd2)  # ***TEMP***
+        print("sd3: ",sd3)  # ***TEMP***
         #    Combine uniformity data
         uchans = combineuniformity(combineuniformity(combineuniformity(sd0,sd1),sd2),sd3)
+        print("uchans: ", uchans) # ***TEMP***
         (counts, means, stddevs) = uchans
-        color = means                                   # mean color
-        stddev = avg(stddevs)                           # std dev from that color
-        return (color, stddev)
-        
-        
-    def _combineuniformity(self, ua, ub) :
-        '''
-        Combine uniformity values for rectangles.
-        '''
-        return [combinestddev(                          # returns list by colorchan of (count, mean, stddev)
-            (ua[0][i], ua[1][i], ua[2][i]),
-            (ub[0][i], ub[1][i], ub[2][i]))
-            for i in range(length(u1))]
+        ####color = means                                   # mean color
+        count = counts[0]
+        color = (means[0]/count, means[1]/count, means[2]/count)
+        stddev = sum(stddevs) / len(stddevs)            # std dev from that color
+        return (color, stddev)       
         
     def _rectuniformity(self, rect) :
         '''
@@ -223,32 +238,7 @@ class ImpostorFile:
         ####croppedrgb.show()                           # ***TEMP***
         stats = PIL.ImageStat.Stat(croppedrgb)          # image statistics
         return(stats.count, stats.mean, stats.stddev)
-        
-    def findframeold(self, sweepsize=0.5, colorhint=None) :
-        '''
-        Find solid color frame around image of interest.
-        
-        Sweep size is the size of the band used to sweep
-        across looking for solid color areas. 0.5 means
-        half the image height or width.
-        
-        If color hint is given, colors closer to it will
-        be preferred.
-        '''
-        #   Phase 1: Sweep horizontally and vertically to find the rough frame bounds
-        (left, top, right, bottom) = self.inputrgb.getbbox()  
-        scanthickness = 5                                   # scan a rect 5 pixels at a time
-        #   Horizontal scan
-        height = bottom-top+1
-        scantop = top + int(height*sweepsize*0.5)           # scan the middle half of the image
-        scanbot = bottom - int(height*sweepsize*0.5)
-        scanh = self.sweeph(scantop, scanbot, width)
-        #   Vertical scan
-        width = right-left+1
-        scanleft = left + int(width*sweepsize*0.5)
-        scanright = right -int(width*sweepsize*0.5)
-        scanh = self.sweepv(scanleft, scanright, width)
-        
+               
     def findframe(self, rect=None, minthickness=10) :
         '''
         Find solid color frame within rect
