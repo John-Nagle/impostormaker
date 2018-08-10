@@ -128,7 +128,7 @@ class ImpostorFile:
         beststddev = math.inf                               # best standard deviation seen
         bestx = None                                        # no hit yet
         for x in range(xstart,xend, incr) :
-            (counts, means, stddevs) = self._rectuniformity((min(x,x+incr), top, max(x, x+incr), bottom))  # scan a rectangle
+            (counts, means, stddevs) = self._rectstddev((min(x,x+incr), top, max(x, x+incr), bottom))  # scan a rectangle
             if not colorinrange(means, colorrange) :        # if color outside range for this scan (anywhere near red)
                 continue                                    # ignore
             stddev = sum(stddevs) / 3                       # std dev of all 3 colors
@@ -153,7 +153,7 @@ class ImpostorFile:
         beststddev = math.inf                               # best standard deviation seen
         besty = None                                        # no hit yet
         for y in range(ystart, yend, incr) :
-            (counts, means, stddevs) = self._rectuniformity((left, min(y,y+incr), right, max(y, y+incr)))  # scan a rectangle
+            (counts, means, stddevs) = self._rectstddev((left, min(y,y+incr), right, max(y, y+incr)))  # scan a rectangle
             ####print("Sweepv: ",y,means, rect)                       # ***TEMP***
             if not colorinrange(means, colorrange) :        # if color outside range for this scan (anywhere near red)
                 continue                                    # ignore
@@ -168,7 +168,10 @@ class ImpostorFile:
         '''
         Test and dump for sweep. Debug use only.
         '''
-        REDRANGE = ((128,0,0),(255,127,127))                # color range where red dominates
+        MAXALLOWEDDEV = 5.0                                 # max std dev of pixels, units 0..255
+        REDRANGE = ((128,0,0),(255,63,63))                  # color range where red dominates
+        GREENRANGE = ((0,128,0),(128,255,128))              # color range where green dominates
+        
         imgrect = self.inputrgb.getbbox()                   # bounds of image
         (left, top, right, bottom) = imgrect
         height = bottom - top
@@ -177,48 +180,102 @@ class ImpostorFile:
         scanbot = bottom - int(height/4)
         scanleft = left + int(width/4)
         scanright = right - int(width/4)
+        xcenter = int((left+right)/2)
+        ycenter = int((top+bottom)/2)                       # center of the image
         thickness = 10 ### 5                                       # minimum frame width
         print("Test sweeps")
-        xleft = self.sweeph(scantop, scanbot, left, int((left+right)/2), thickness, REDRANGE)
-        xright = self.sweeph(scantop, scanbot, right, int((left+right)/2), thickness, REDRANGE)
+        xleft = self.sweeph(scantop, scanbot, left, xcenter, thickness, REDRANGE)
+        xright = self.sweeph(scantop, scanbot, right, xcenter, thickness, REDRANGE)
         print("X frame limits: ", xleft, xright)
-        ytop = self.sweepv(scanleft, scanright, top, int((top+bottom)/2), thickness, REDRANGE)
-        ybot = self.sweepv(scanleft, scanright, bottom, int((top+bottom)/2), thickness, REDRANGE)
+        ytop = self.sweepv(scanleft, scanright, top, ycenter, thickness, REDRANGE)
+        ybot = self.sweepv(scanleft, scanright, bottom, ycenter, thickness, REDRANGE)
         print("Y frame limits: ", ytop, ybot)
         if not (xright is not None and xleft is not None and ytop is not None and ybot is not None) :
             print("Failed to find frame limits.")
             return None
         # Validate frame
-        sweptrect = (xleft, ytop, xright, ybot)
-        (color, uniformity) = self._frameuniformity(sweptrect, thickness)
-        print("Frame color: ",color, "Uniformity: ",uniformity)       
-        ####croppedrgb = self.inputrgb.crop(sweptrect)           # extract rectangle of interest
-        ####croppedrgb.show()                                   # ***TEMP***
+        outerrect = (xleft, ytop, xright, ybot)
+        innerrect = insetrect(outerrect, thickness)
+        (color, stddev) = self._framestddev(outerrect, innerrect)
+        print("Frame color: ",color, "Stddev: ",stddev)       
+        if stddev > MAXALLOWEDDEV :
+            print("Frame area is not uniform enough.")
+            croppedrgb = self.inputrgb.crop(outerrect)      # extract rectangle of interest
+            croppedrgb.show()                               # show failed frame
+            return None
+        #   Tighten frame around image
+        print("Tightening from top: ", innerrect)
+        innerrectgood = list(innerrect)                     # make modifiable
+        innerrectwrk = list(innerrectgood)                  # copy, not ref
+        for y in range(innerrectgood[1], ycenter) :
+            innerrectwrk[1] = y
+            (color, stddev) = self._framestddev(outerrect, innerrectwrk)
+            print("Rect: ",innerrectwrk, " Stddev: ", stddev) # ***TEMP***
+            if (stddev > MAXALLOWEDDEV) :                   # can't reduce any more
+                break
+            innerrectgood[1] = y                            # OK, save
+        #   Tighten from bottom
+        print("Tightening from bottom: ", innerrect)
+        innerrectwrk = list(innerrectgood)                  # copy, not ref
+        for y in range(innerrectgood[3],ycenter,-1) :
+            innerrectwrk[3] = y
+            (color, stddev) = self._framestddev(outerrect, innerrectwrk)
+            print("Rect: ",innerrectwrk, " Stddev: ", stddev) # ***TEMP***
+            if (stddev > MAXALLOWEDDEV) :                   # can't reduce any more
+                break
+            innerrectgood[3] = innerrectwrk[3]              # OK, save
+        #   Tighten from left
+        print("Tightening from left: ", innerrect)
+        innerrectwrk = list(innerrectgood)                  # copy, not ref
+        for x in range(innerrectgood[0],ycenter) :
+            innerrectwrk[0] = x
+            (color, stddev) = self._framestddev(outerrect, innerrectwrk)
+            print("Rect: ",innerrectwrk, " Stddev: ", stddev) # ***TEMP***
+            if (stddev > MAXALLOWEDDEV) :                   # can't reduce any more
+                break
+            innerrectgood[0] = innerrectwrk[0]              # OK, save
+        print("Tightening from right: ", innerrect)
+        innerrectwrk = list(innerrectgood)                  # copy, not ref
+        for x in range(innerrectgood[2],ycenter,-1) :
+            innerrectwrk[2] = x
+            (color, stddev) = self._framestddev(outerrect, innerrectwrk)
+            print("Rect: ",innerrectwrk, " Stddev: ", stddev) # ***TEMP***
+            if (stddev > MAXALLOWEDDEV) :                   # can't reduce any more
+                break
+            innerrectgood[2] = innerrectwrk[2]              # OK, save
+        self.inputrgb.crop(innerrectgood).show()            # show reduced frame
+        
+            
+            
        
         
-    def _frameuniformity(self, rect, insetwidth) :
+    def _framestddev(self, rect, innerrect) :
         '''
         Measure uniformity for a frame whose outside is "rect" and
         whose thickness is "insetwidth".
         
         Input is (ulx, uly, lrx, lry) tuple.
         
-        Output is (color, uniformity)
+        Output is (color, stddev)
         '''
         #   Compute four non-overlapping rectangles that form the
         #   frame and combine them.
-        innerrect = insetrect(rect, insetwidth)
-        if innerrect is None :                          # degenerate
-            return(None)
+        print("rects: ",rect, innerrect)
+        if innerrect is None :                                  # None
+            return None 
+        if innerrect[0] < rect[0] or innerrect[1] < rect[1] or innerrect[2] > rect[2] or innerrect[3] > rect[3] :
+            return None                                         # not properly nested
+        if innerrect[0] >= innerrect[2] or innerrect[1] >= innerrect[3] :
+            return None                                         # degenerate
         rect0 = (innerrect[0], rect[1], rect[2], innerrect[1])  # top
         rect1 = (innerrect[2], innerrect[1], rect[2], rect[3])  # right
         rect2 = (rect[0], innerrect[3], innerrect[2], rect[3])  # bottom
         rect3 = (rect[0], rect[1], innerrect[0], innerrect[3])  # left
         ####self.inputrgb.crop(rect1).show()    # ***TEMP***
-        sd0 = self._rectuniformity(rect0)
-        sd1 = self._rectuniformity(rect1)
-        sd2 = self._rectuniformity(rect2)
-        sd3 = self._rectuniformity(rect3)
+        sd0 = self._rectstddev(rect0)
+        sd1 = self._rectstddev(rect1)
+        sd2 = self._rectstddev(rect2)
+        sd3 = self._rectstddev(rect3)
         print("sd0: ",sd0)  # ***TEMP***
         print("sd1: ",sd1)  # ***TEMP***
         print("sd2: ",sd2)  # ***TEMP***
@@ -230,7 +287,7 @@ class ImpostorFile:
         stddev = sum(stddevs) / len(stddevs)            # std dev from that color
         return (means, stddev)       
         
-    def _rectuniformity(self, rect) :
+    def _rectstddev(self, rect) :
         '''
         Run the uniformity test on a rectangle.
         '''
