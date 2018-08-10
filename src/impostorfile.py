@@ -96,7 +96,6 @@ class ImpostorFile:
         '''
         self.inputimg = PIL.Image.open(self.filename)
         self.inputrgb = self.inputimg.convert(mode="RGB")  # we want to work on this as RGB
-        ####self.inputrgb = self.inputimg # ***TEMP***
         
     def show(self) :                                    
         '''
@@ -135,7 +134,6 @@ class ImpostorFile:
             if stddev < beststddev :                        # new winner
                 bestx = x
                 beststddev = stddev
-                print("Best stddev x: ",x,beststddev)       # ***TEMP***
         return bestx                                        # winner, or none
                 
     def sweepv(self, left, right, ystart, yend, thickness, colorrange) :
@@ -154,7 +152,6 @@ class ImpostorFile:
         besty = None                                        # no hit yet
         for y in range(ystart, yend, incr) :
             (counts, means, stddevs) = self._rectstddev((left, min(y,y+incr), right, max(y, y+incr)))  # scan a rectangle
-            ####print("Sweepv: ",y,means, rect)                       # ***TEMP***
             if not colorinrange(means, colorrange) :        # if color outside range for this scan (anywhere near red)
                 continue                                    # ignore
             stddev = sum(stddevs) / 3                       # std dev of all 3 colors
@@ -168,7 +165,7 @@ class ImpostorFile:
         '''
         Test and dump for sweep. Debug use only.
         '''
-        MAXALLOWEDDEV = 5.0                                 # max std dev of pixels, units 0..255
+        MAXALLOWEDDEV = 1.0                                 # max std dev of pixels, units 0..255
         REDRANGE = ((128,0,0),(255,63,63))                  # color range where red dominates
         GREENRANGE = ((0,128,0),(128,255,128))              # color range where green dominates
         
@@ -182,7 +179,7 @@ class ImpostorFile:
         scanright = right - int(width/4)
         xcenter = int((left+right)/2)
         ycenter = int((top+bottom)/2)                       # center of the image
-        thickness = 10 ### 5                                       # minimum frame width
+        thickness = 10 ###   10 ### 5                                       # minimum frame width
         print("Test sweeps")
         xleft = self.sweeph(scantop, scanbot, left, xcenter, thickness, REDRANGE)
         xright = self.sweeph(scantop, scanbot, right, xcenter, thickness, REDRANGE)
@@ -207,47 +204,49 @@ class ImpostorFile:
         print("Tightening from top: ", innerrect)
         innerrectgood = list(innerrect)                     # make modifiable
         innerrectwrk = list(innerrectgood)                  # copy, not ref
+        stddevgood = 0.0
         for y in range(innerrectgood[1], ycenter) :
             innerrectwrk[1] = y
             (color, stddev) = self._framestddev(outerrect, innerrectwrk)
-            print("Rect: ",innerrectwrk, " Stddev: ", stddev) # ***TEMP***
             if (stddev > MAXALLOWEDDEV) :                   # can't reduce any more
                 break
             innerrectgood[1] = y                            # OK, save
+            stddevgood = stddev                             # valid stddev
+        print("Rect: ",innerrectgood, " Stddev: ", stddevgood) # ***TEMP***
         #   Tighten from bottom
         print("Tightening from bottom: ", innerrect)
         innerrectwrk = list(innerrectgood)                  # copy, not ref
         for y in range(innerrectgood[3],ycenter,-1) :
             innerrectwrk[3] = y
             (color, stddev) = self._framestddev(outerrect, innerrectwrk)
-            print("Rect: ",innerrectwrk, " Stddev: ", stddev) # ***TEMP***
             if (stddev > MAXALLOWEDDEV) :                   # can't reduce any more
                 break
             innerrectgood[3] = innerrectwrk[3]              # OK, save
+            stddevgood = stddev                             # valid stddev
+        print("Rect: ",innerrectgood, " Stddev: ", stddevgood) # ***TEMP***
         #   Tighten from left
-        print("Tightening from left: ", innerrect)
+        print("Tightening from left: ", innerrectgood)
         innerrectwrk = list(innerrectgood)                  # copy, not ref
         for x in range(innerrectgood[0],ycenter) :
             innerrectwrk[0] = x
             (color, stddev) = self._framestddev(outerrect, innerrectwrk)
-            print("Rect: ",innerrectwrk, " Stddev: ", stddev) # ***TEMP***
             if (stddev > MAXALLOWEDDEV) :                   # can't reduce any more
                 break
             innerrectgood[0] = innerrectwrk[0]              # OK, save
-        print("Tightening from right: ", innerrect)
+            stddevgood = stddev                             # valid stddev
+        print("Rect: ",innerrectgood, " Stddev: ", stddevgood) # ***TEMP***
+        print("Tightening from right: ", innerrectgood)
         innerrectwrk = list(innerrectgood)                  # copy, not ref
         for x in range(innerrectgood[2],ycenter,-1) :
             innerrectwrk[2] = x
             (color, stddev) = self._framestddev(outerrect, innerrectwrk)
-            print("Rect: ",innerrectwrk, " Stddev: ", stddev) # ***TEMP***
             if (stddev > MAXALLOWEDDEV) :                   # can't reduce any more
                 break
             innerrectgood[2] = innerrectwrk[2]              # OK, save
+            stddevgood = stddev                             # valid stddev
+        print("Rect: ",innerrectgood, " Stddev: ", stddevgood) # ***TEMP***
         self.inputrgb.crop(innerrectgood).show()            # show reduced frame
-        
-            
-            
-       
+           
         
     def _framestddev(self, rect, innerrect) :
         '''
@@ -260,7 +259,6 @@ class ImpostorFile:
         '''
         #   Compute four non-overlapping rectangles that form the
         #   frame and combine them.
-        print("rects: ",rect, innerrect)
         if innerrect is None :                                  # None
             return None 
         if innerrect[0] < rect[0] or innerrect[1] < rect[1] or innerrect[2] > rect[2] or innerrect[3] > rect[3] :
@@ -271,18 +269,12 @@ class ImpostorFile:
         rect1 = (innerrect[2], innerrect[1], rect[2], rect[3])  # right
         rect2 = (rect[0], innerrect[3], innerrect[2], rect[3])  # bottom
         rect3 = (rect[0], rect[1], innerrect[0], innerrect[3])  # left
-        ####self.inputrgb.crop(rect1).show()    # ***TEMP***
         sd0 = self._rectstddev(rect0)
         sd1 = self._rectstddev(rect1)
         sd2 = self._rectstddev(rect2)
         sd3 = self._rectstddev(rect3)
-        print("sd0: ",sd0)  # ***TEMP***
-        print("sd1: ",sd1)  # ***TEMP***
-        print("sd2: ",sd2)  # ***TEMP***
-        print("sd3: ",sd3)  # ***TEMP***
         #    Combine uniformity data
         uchans = combineuniformity(combineuniformity(combineuniformity(sd0,sd1),sd2),sd3)
-        print("uchans: ", uchans) # ***TEMP***
         (counts, means, stddevs) = uchans
         stddev = sum(stddevs) / len(stddevs)            # std dev from that color
         return (means, stddev)       
