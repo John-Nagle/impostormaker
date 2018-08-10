@@ -54,14 +54,16 @@ def combinestddev(x, y) :
     Formula from
     https://en.wikipedia.org/wiki/Pooled_variance#Pooled_standard_deviation
     """
-    print("combinestddev: ", x, y); # ***TEMP***
+    ####print("combinestddev: ", x, y); # ***TEMP***
     (nx, ux, sx) = x                # count, mean, std dev
     (ny, uy, sy) = y
     n = nx + ny                     # total count
     if n <= 0 :                     # avoid divide by zero for empty case
         return (0,0.0,0.0)
     u = (nx*ux + ny*uy) / n         # average
-    ssq = ((nx*ux*ux) + (ny*uy*uy))/n + ((nx*ny)/(n*n))*(ux-uy)*(ux-uy) # square of standard dev
+    ####ssq = ((nx*ux*ux) + (ny*uy*uy))/n + ((nx*ny)/(n*n))*(ux-uy)*(ux-uy) # square of standard dev ***WRONG***
+    ssq = ((nx*sx*sx) + (ny*sy*sy))/n + ((nx*ny)/(n*n))*(ux-uy)*(ux-uy) # square of standard dev
+    print("combinestddev: ", x, y, " -> ",(n,u,math.sqrt(ssq))); # ***TEMP***
     return (n, u, math.sqrt(ssq))   # return n, mean, standard dev
     
 def combineuniformity(ua, ub) :
