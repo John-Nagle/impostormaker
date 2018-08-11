@@ -75,8 +75,20 @@ def combineuniformity(ua, ub) :
     unif = [(unif[0][i], unif[1][i], unif[2][i]) for i in range(len(unif))] # transpose
     ####print("combineuniformity: ",ua,ub, " -> ", unif)  # ***TEMP***
     return unif
-
-
+    
+def makegreenscreenmask(image, colorrange) :
+    '''
+    Make a 1-bit mask that masks out the indicated color
+    '''
+    mask = PIL.Image.new("L",image.size,0)               # create matching 1-bit mask
+    #   One pixel at a time, in Python. Bleah.
+    for x in range(image.size[0]) :
+        for y in range(image.size[1]) :
+            px = image.getpixel((x,y))
+            if colorinrange(px,colorrange) :
+                print(px)
+                mask.putpixel((x,y),255) # simple range check
+    return mask         
 
 class ImpostorFile:
 
@@ -159,15 +171,37 @@ class ImpostorFile:
                 besty = y
                 beststddev = stddev
         return besty                                        # winner, or none
-                
+        
+    def findgreenscreencolor(self, rect, greenrange, maxalloweddev) :
+        '''
+        Find most prevalent color in green range for green screen removal
+        
+        Checks a thin area slightly inside the frame for uniformity
+        
+        ***NEEDS WORK*** should not need such a big allowed deviation
+        '''
+        INSETDIST = 10
+        for insetdist in range(0,INSETDIST) :
+            wrkrect = insetrect(rect, insetdist)                     # far enough in to escape edge noise
+            (color, stddev) = self._framestddev(wrkrect, insetrect(wrkrect,1))
+            if stddev > maxalloweddev :
+                print("Findgreenscreencolor - could not find uniform green region. Std dev: ", stddev)
+                continue
+            if not colorinrange(color, greenrange) :
+                print("Findgreenscreencolor - could not find uniform green region. Color: ", color)
+                continue
+            return color
+        return None
+           
      
     def testsweeps(self) :
         '''
         Test and dump for sweep. Debug use only.
         '''
         MAXALLOWEDDEV = 1.0                                 # max std dev of pixels, units 0..255
-        REDRANGE = ((128,0,0),(255,63,63))                  # color range where red dominates
-        GREENRANGE = ((0,128,0),(128,255,128))              # color range where green dominates
+        REDLIMITS = ((128,0,0),(255,63,63))                  # color range where red dominates
+        GREENLIMITS = ((0,128,0),(128,255,128))              # color range where green dominates
+        GREENTOL = 5                                        # green screen tolerance
         
         imgrect = self.inputrgb.getbbox()                   # bounds of image
         (left, top, right, bottom) = imgrect
@@ -181,11 +215,11 @@ class ImpostorFile:
         ycenter = int((top+bottom)/2)                       # center of the image
         thickness = 10 ###   10 ### 5                                       # minimum frame width
         print("Test sweeps")
-        xleft = self.sweeph(scantop, scanbot, left, xcenter, thickness, REDRANGE)
-        xright = self.sweeph(scantop, scanbot, right, xcenter, thickness, REDRANGE)
+        xleft = self.sweeph(scantop, scanbot, left, xcenter, thickness, REDLIMITS)
+        xright = self.sweeph(scantop, scanbot, right, xcenter, thickness, REDLIMITS)
         print("X frame limits: ", xleft, xright)
-        ytop = self.sweepv(scanleft, scanright, top, ycenter, thickness, REDRANGE)
-        ybot = self.sweepv(scanleft, scanright, bottom, ycenter, thickness, REDRANGE)
+        ytop = self.sweepv(scanleft, scanright, top, ycenter, thickness, REDLIMITS)
+        ybot = self.sweepv(scanleft, scanright, bottom, ycenter, thickness, REDLIMITS)
         print("Y frame limits: ", ytop, ybot)
         if not (xright is not None and xleft is not None and ytop is not None and ybot is not None) :
             print("Failed to find frame limits.")
@@ -245,7 +279,24 @@ class ImpostorFile:
             innerrectgood[2] = innerrectwrk[2]              # OK, save
             stddevgood = stddev                             # valid stddev
         print("Rect: ",innerrectgood, " Stddev: ", stddevgood) # ***TEMP***
-        self.inputrgb.crop(innerrectgood).show()            # show reduced frame
+        ####self.inputrgb.crop(innerrectgood).show()            # show reduced frame
+        #   Do green screen
+        croppedimage = self.inputrgb.crop(innerrectgood)     # crop out frame
+        croppedimage.show()
+        MAXALLOWEDDEV2 = 6                                   # ***TEMP***
+        greencolor = self.findgreenscreencolor(innerrectgood, GREENLIMITS, MAXALLOWEDDEV2)
+        print("Green screen color: ",greencolor)
+        if greencolor is None :                             # fails
+            return None
+        greenrange = ((max(greencolor[0]-GREENTOL,0),
+                    max(greencolor[1]-GREENTOL,0),
+                    max(greencolor[2]-GREENTOL,0)),
+                    (min(greencolor[0]+GREENTOL,255),
+                    min(greencolor[1]+GREENTOL,255),
+                    min(greencolor[2]+GREENTOL,255)))
+        mask = makegreenscreenmask(croppedimage, greenrange)
+        mask.show()                                         # ***TEMP***
+        
            
         
     def _framestddev(self, rect, innerrect) :
