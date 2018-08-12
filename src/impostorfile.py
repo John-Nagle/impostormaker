@@ -338,6 +338,7 @@ class ImpostorFile:
         mask.show()                                         # ***TEMP***
         maskedimage = PIL.Image.new("RGBA",croppedimage.size)
         maskedimage.paste(croppedimage,mask)
+        maskedimage.putalpha(mask)                          # add alpha channel
         maskedimage.show()                                  # after removing green screen
         
            
