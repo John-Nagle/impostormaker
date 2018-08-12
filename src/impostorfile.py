@@ -106,37 +106,28 @@ def combineuniformity(ua, ub) :
     ####print("combineuniformity: ",ua,ub, " -> ", unif)  # ***TEMP***
     return unif
     
-def makegreenscreenmaskold(image, colorrange) :
-    '''
-    Make a 1-bit mask that masks out the indicated color
-    '''
-    mask = PIL.Image.new("L",image.size,0)               # create matching 1-bit mask
-    #   One pixel at a time, in Python. Bleah.
-    for x in range(image.size[0]) :
-        for y in range(image.size[1]) :
-            px = image.getpixel((x,y))
-            if colorinrange(px,colorrange) :
-                mask.putpixel((x,y),255) # simple range check
-    return mask 
     
 def makegreenscreenmask(img, colorrange) :
-
+    '''
+    Make green screen mask. Colorrange is the range of green to be masked.
+    Colorrange is in HSV form,, but the image is RGB.
+    '''
     (min_h, min_s, min_v),(max_h, max_s, max_v) = colorrange    # HSV bounds
     pix = img.load()                                    # force into memory
     width, height = img.size
     mask = PIL.Image.new("L",img.size,0)                # create matching alpha mask
+    mpix = mask.load()                                  # force into memory
     #   Scan for green pixels
     for x in range(width):
         for y in range(height):
             r, g, b = pix[x, y]
             h_ratio, s_ratio, v_ratio = rgb_to_hsv(r / 255.0, g / 255.0, b / 255.0)
             h, s, v = (h_ratio * 360, s_ratio * 255, v_ratio * 255)
-            #### h, s, v = pix[x, y]
             if min_h <= h <= max_h and min_s <= s <= max_s and min_v <= v <= max_v:
                 v = 0
             else :
                 v = 255
-            mask.putpixel((x,y),v)
+            mpix[x,y] = v
     return mask    
     
 def cleanmaskouteredge(mask, maxdist) :
@@ -146,7 +137,6 @@ def cleanmaskouteredge(mask, maxdist) :
     This cleans up any junk left over by cropping.
     '''
     (left, top, right, bottom) = mask.getbbox()
-    print("bbox: ",mask.getbbox())  # ***TEMP***
     pix = mask.load()                                   # force into memory
     for x in range(left, right) :                       # do top and bottom
         for y in range(top, top+maxdist) :              # clean inward from top
@@ -274,7 +264,64 @@ class ImpostorFile:
                 continue
             return color
         return None
-           
+        
+    def tightenframe(self, outerrect, innerrect, maxalloweddev) :
+        '''
+        Tighten frame around image. Brings innerrect inward until no longer in
+        an all-red area. The frame is the area between outerrect and innerect.
+        
+        Returns (rect, stddevofcolor)
+        '''
+        (left, top, right, bottom) = innerrect
+        xcenter = int((left+right)/2)
+        ycenter = int((top+bottom)/2)                       # center of the image
+
+        #   Tighten frame around image
+        print("Tightening from top: ", innerrect)
+        innerrectgood = list(innerrect)                     # make modifiable
+        innerrectwrk = list(innerrectgood)                  # copy, not ref
+        stddevgood = 0.0
+        for y in range(innerrectgood[1], ycenter) :
+            innerrectwrk[1] = y
+            (color, stddev) = self._framestddev(outerrect, innerrectwrk)
+            if (stddev > maxalloweddev) :                   # can't reduce any more
+                break
+            innerrectgood[1] = y                            # OK, save
+            stddevgood = stddev                             # valid stddev
+        print("Rect: ",innerrectgood, " Stddev: ", stddevgood) # ***TEMP***
+        #   Tighten from bottom
+        print("Tightening from bottom: ", innerrect)
+        innerrectwrk = list(innerrectgood)                  # copy, not ref
+        for y in range(innerrectgood[3],ycenter,-1) :
+            innerrectwrk[3] = y
+            (color, stddev) = self._framestddev(outerrect, innerrectwrk)
+            if (stddev > maxalloweddev) :                   # can't reduce any more
+                break
+            innerrectgood[3] = innerrectwrk[3]              # OK, save
+            stddevgood = stddev                             # valid stddev
+        print("Rect: ",innerrectgood, " Stddev: ", stddevgood) # ***TEMP***
+        #   Tighten from left
+        print("Tightening from left: ", innerrectgood)
+        innerrectwrk = list(innerrectgood)                  # copy, not ref
+        for x in range(innerrectgood[0],ycenter) :
+            innerrectwrk[0] = x
+            (color, stddev) = self._framestddev(outerrect, innerrectwrk)
+            if (stddev > maxalloweddev) :                   # can't reduce any more
+                break
+            innerrectgood[0] = innerrectwrk[0]              # OK, save
+            stddevgood = stddev                             # valid stddev
+        print("Rect: ",innerrectgood, " Stddev: ", stddevgood) # ***TEMP***
+        print("Tightening from right: ", innerrectgood)
+        innerrectwrk = list(innerrectgood)                  # copy, not ref
+        for x in range(innerrectgood[2],ycenter,-1) :
+            innerrectwrk[2] = x
+            (color, stddev) = self._framestddev(outerrect, innerrectwrk)
+            if (stddev > maxalloweddev) :                   # can't reduce any more
+                break
+            innerrectgood[2] = innerrectwrk[2]              # OK, save
+            stddevgood = stddev                             # valid stddev
+        print("Rect: ",innerrectgood, " Stddev: ", stddevgood) # ***TEMP***
+        return (innerrectgood, stddevgood)                  # Returns rect
      
     def testsweeps(self) :
         '''
@@ -318,51 +365,7 @@ class ImpostorFile:
             croppedrgb.show()                               # show failed frame
             return None
         #   Tighten frame around image
-        print("Tightening from top: ", innerrect)
-        innerrectgood = list(innerrect)                     # make modifiable
-        innerrectwrk = list(innerrectgood)                  # copy, not ref
-        stddevgood = 0.0
-        for y in range(innerrectgood[1], ycenter) :
-            innerrectwrk[1] = y
-            (color, stddev) = self._framestddev(outerrect, innerrectwrk)
-            if (stddev > MAXALLOWEDDEV) :                   # can't reduce any more
-                break
-            innerrectgood[1] = y                            # OK, save
-            stddevgood = stddev                             # valid stddev
-        print("Rect: ",innerrectgood, " Stddev: ", stddevgood) # ***TEMP***
-        #   Tighten from bottom
-        print("Tightening from bottom: ", innerrect)
-        innerrectwrk = list(innerrectgood)                  # copy, not ref
-        for y in range(innerrectgood[3],ycenter,-1) :
-            innerrectwrk[3] = y
-            (color, stddev) = self._framestddev(outerrect, innerrectwrk)
-            if (stddev > MAXALLOWEDDEV) :                   # can't reduce any more
-                break
-            innerrectgood[3] = innerrectwrk[3]              # OK, save
-            stddevgood = stddev                             # valid stddev
-        print("Rect: ",innerrectgood, " Stddev: ", stddevgood) # ***TEMP***
-        #   Tighten from left
-        print("Tightening from left: ", innerrectgood)
-        innerrectwrk = list(innerrectgood)                  # copy, not ref
-        for x in range(innerrectgood[0],ycenter) :
-            innerrectwrk[0] = x
-            (color, stddev) = self._framestddev(outerrect, innerrectwrk)
-            if (stddev > MAXALLOWEDDEV) :                   # can't reduce any more
-                break
-            innerrectgood[0] = innerrectwrk[0]              # OK, save
-            stddevgood = stddev                             # valid stddev
-        print("Rect: ",innerrectgood, " Stddev: ", stddevgood) # ***TEMP***
-        print("Tightening from right: ", innerrectgood)
-        innerrectwrk = list(innerrectgood)                  # copy, not ref
-        for x in range(innerrectgood[2],ycenter,-1) :
-            innerrectwrk[2] = x
-            (color, stddev) = self._framestddev(outerrect, innerrectwrk)
-            if (stddev > MAXALLOWEDDEV) :                   # can't reduce any more
-                break
-            innerrectgood[2] = innerrectwrk[2]              # OK, save
-            stddevgood = stddev                             # valid stddev
-        print("Rect: ",innerrectgood, " Stddev: ", stddevgood) # ***TEMP***
-        ####self.inputrgb.crop(innerrectgood).show()            # show reduced frame
+        (innerrectgood, stddev) = self.tightenframe(outerrect, innerrect, MAXALLOWEDDEV)
         #   Do green screen
         croppedimage = self.inputrgb.crop(innerrectgood)     # crop out frame
         croppedimage.show()
