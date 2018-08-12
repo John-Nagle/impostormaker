@@ -137,7 +137,40 @@ def makegreenscreenmask(img, colorrange) :
             else :
                 v = 255
             mask.putpixel((x,y),v)
-    return mask       
+    return mask    
+    
+def cleanmaskouteredge(mask, maxdist) :
+    '''
+    Remove any nonzero pixels at the outer edge of the mask image.
+    
+    This cleans up any junk left over by cropping.
+    '''
+    (left, top, right, bottom) = mask.getbbox()
+    print("bbox: ",mask.getbbox())  # ***TEMP***
+    pix = mask.load()                                   # force into memory
+    for x in range(left, right) :                       # do top and bottom
+        for y in range(top, top+maxdist) :              # clean inward from top
+            if pix[x,y] > 0 :
+                pix[x,y] = 0
+            else :
+                break                                   # no more pixels in this column
+        for y in range(bottom-1, bottom-maxdist-1,-1) : # clean inward from bottom
+            if pix[x,y] > 0 :
+                pix[x,y] = 0
+            else :
+                break 
+    for y in range(top, bottom) :                       # do left and right
+        for x in range(left, left+maxdist) :            # clean inward from left
+            if pix[x,y] > 0 :
+                pix[x,y] = 0
+            else :
+                break 
+        for x in range(right-1, right-maxdist-1,-1) :   # clean inward from bottom
+            if pix[x,y] > 0 :
+                pix[x,y] = 0
+            else :
+                break 
+      
 
 class ImpostorFile:
 
@@ -251,6 +284,7 @@ class ImpostorFile:
         REDLIMITS = ((128,0,0),(255,63,63))                  # color range where red dominates
         GREENLIMITS = ((0,128,0),(128,255,128))              # color range where green dominates
         GREENTOL = 10                                       # green screen tolerance
+        MAXCLEANDIST = 4                                    # go this far in from edge when cleaning edges
         
         imgrect = self.inputrgb.getbbox()                   # bounds of image
         (left, top, right, bottom) = imgrect
@@ -336,10 +370,13 @@ class ImpostorFile:
         greenrangehsv = (GREEN_RANGE_MIN_HSV, GREEN_RANGE_MAX_HSV)
         mask = makegreenscreenmask(croppedimage, greenrangehsv)
         mask.show()                                         # ***TEMP***
+        cleanmaskouteredge(mask, MAXCLEANDIST)              # clean up mask
+        mask.show()                                         # ***TEMP***
         maskedimage = PIL.Image.new("RGBA",croppedimage.size)
         maskedimage.paste(croppedimage,mask)
         maskedimage.putalpha(mask)                          # add alpha channel
         maskedimage.show()                                  # after removing green screen
+        maskedimage.save("/tmp/testmask.png")               # ***TEMP***
         
            
         
