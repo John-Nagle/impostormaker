@@ -18,6 +18,11 @@ import PIL.Image
 import PIL.ImageStat
 import math
 
+#   Useful constants
+GREEN_RANGE_MIN_HSV = (100, 80, 70)
+GREEN_RANGE_MAX_HSV = (185, 255, 255)
+
+
 #   Useful functions
 
 def countrect(rect) :
@@ -33,6 +38,31 @@ def insetrect(rect, inset) :
     if insetrect[0] >= rect[2] or insetrect[2] <= rect[0] or insetrect[1] >= rect[3] or insetrect[3] <= rect[1] :
         return None
     return(insetrect)
+    
+def rgb_to_hsv(r, g, b) :
+    '''
+    RGB to HSV color space, only for green screening
+    
+    From    
+    https://github.com/kimmobrunfeldt/howto-everything/blob/master/remove-green.md
+    '''
+    maxc = max(r, g, b)
+    minc = min(r, g, b)
+    v = maxc
+    if minc == maxc:
+        return 0.0, 0.0, v
+    s = (maxc-minc) / maxc
+    rc = (maxc-r) / (maxc-minc)
+    gc = (maxc-g) / (maxc-minc)
+    bc = (maxc-b) / (maxc-minc)
+    if r == maxc:
+        h = bc-gc
+    elif g == maxc:
+        h = 2.0+rc-bc
+    else:
+        h = 4.0+gc-rc
+    h = (h/6.0) % 1.0
+    return h, s, v
     
 def colorinrange(color, colorrange) :
     '''
@@ -76,7 +106,7 @@ def combineuniformity(ua, ub) :
     ####print("combineuniformity: ",ua,ub, " -> ", unif)  # ***TEMP***
     return unif
     
-def makegreenscreenmask(image, colorrange) :
+def makegreenscreenmaskold(image, colorrange) :
     '''
     Make a 1-bit mask that masks out the indicated color
     '''
@@ -86,9 +116,28 @@ def makegreenscreenmask(image, colorrange) :
         for y in range(image.size[1]) :
             px = image.getpixel((x,y))
             if colorinrange(px,colorrange) :
-                print(px)
                 mask.putpixel((x,y),255) # simple range check
-    return mask         
+    return mask 
+    
+def makegreenscreenmask(img, colorrange) :
+
+    (min_h, min_s, min_v),(max_h, max_s, max_v) = colorrange    # HSV bounds
+    pix = img.load()                                    # force into memory
+    width, height = img.size
+    mask = PIL.Image.new("L",img.size,0)                # create matching alpha mask
+    #   Scan for green pixels
+    for x in range(width):
+        for y in range(height):
+            r, g, b = pix[x, y]
+            h_ratio, s_ratio, v_ratio = rgb_to_hsv(r / 255.0, g / 255.0, b / 255.0)
+            h, s, v = (h_ratio * 360, s_ratio * 255, v_ratio * 255)
+            #### h, s, v = pix[x, y]
+            if min_h <= h <= max_h and min_s <= s <= max_s and min_v <= v <= max_v:
+                v = 0
+            else :
+                v = 255
+            mask.putpixel((x,y),v)
+    return mask       
 
 class ImpostorFile:
 
@@ -201,7 +250,7 @@ class ImpostorFile:
         MAXALLOWEDDEV = 1.0                                 # max std dev of pixels, units 0..255
         REDLIMITS = ((128,0,0),(255,63,63))                  # color range where red dominates
         GREENLIMITS = ((0,128,0),(128,255,128))              # color range where green dominates
-        GREENTOL = 5                                        # green screen tolerance
+        GREENTOL = 10                                       # green screen tolerance
         
         imgrect = self.inputrgb.getbbox()                   # bounds of image
         (left, top, right, bottom) = imgrect
@@ -283,19 +332,13 @@ class ImpostorFile:
         #   Do green screen
         croppedimage = self.inputrgb.crop(innerrectgood)     # crop out frame
         croppedimage.show()
-        MAXALLOWEDDEV2 = 6                                   # ***TEMP***
-        greencolor = self.findgreenscreencolor(innerrectgood, GREENLIMITS, MAXALLOWEDDEV2)
-        print("Green screen color: ",greencolor)
-        if greencolor is None :                             # fails
-            return None
-        greenrange = ((max(greencolor[0]-GREENTOL,0),
-                    max(greencolor[1]-GREENTOL,0),
-                    max(greencolor[2]-GREENTOL,0)),
-                    (min(greencolor[0]+GREENTOL,255),
-                    min(greencolor[1]+GREENTOL,255),
-                    min(greencolor[2]+GREENTOL,255)))
-        mask = makegreenscreenmask(croppedimage, greenrange)
+        #   Clip green in HSV space
+        greenrangehsv = (GREEN_RANGE_MIN_HSV, GREEN_RANGE_MAX_HSV)
+        mask = makegreenscreenmask(croppedimage, greenrangehsv)
         mask.show()                                         # ***TEMP***
+        maskedimage = PIL.Image.new("RGBA",croppedimage.size)
+        maskedimage.paste(croppedimage,mask)
+        maskedimage.show()                                  # after removing green screen
         
            
         
