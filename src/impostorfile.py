@@ -329,8 +329,8 @@ class ImpostorFile:
         '''
         MAXALLOWEDDEV = 1.0                                 # max std dev of pixels, units 0..255
         REDLIMITS = ((128,0,0),(255,63,63))                  # color range where red dominates
-        GREENLIMITS = ((0,128,0),(128,255,128))              # color range where green dominates
-        GREENTOL = 10                                       # green screen tolerance
+        ####GREENLIMITS = ((0,128,0),(128,255,128))              # color range where green dominates
+        ####GREENTOL = 10                                       # green screen tolerance
         MAXCLEANDIST = 4                                    # go this far in from edge when cleaning edges
         
         imgrect = self.inputrgb.getbbox()                   # bounds of image
