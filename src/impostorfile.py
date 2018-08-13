@@ -19,9 +19,12 @@ import PIL.ImageStat
 import math
 
 #   Useful constants
-GREEN_RANGE_MIN_HSV = (100, 80, 70)
+GREEN_RANGE_MIN_HSV = (100, 80, 70)                 # green screen range
 GREEN_RANGE_MAX_HSV = (185, 255, 255)
 
+GREENISH_RANGE_MIN_HSV = (100, 40, 35)              # green tinge range for cleanup
+GREENISH_RANGE_MIN_HSV = (100, 0, 0  )              # ***TEMP TEST***
+GREENISH_RANGE_MAX_HSV = (185, 255, 255)
 
 #   Useful functions
 
@@ -69,10 +72,44 @@ def colorinrange(color, colorrange) :
     Is color within bounds given?
     '''
     (locolor, hicolor) = colorrange # color limits
-    for i in range(len(color)) :    # test each color channel
-        if (color[i] < locolor[i]) or (color[i] > hicolor[i]) :
-            return False            # out of bounds
+    if (color[0] < locolor[0]) or (color[0] > hicolor[0]) :
+        return False            # out of bounds
+    if (color[1] < locolor[1]) or (color[1] > hicolor[1]) :
+        return False            # out of bounds
+    if (color[2] < locolor[2]) or (color[2] > hicolor[2]) :
+        return False            # out of bounds
     return True                     # color 
+    
+def balancegreentingepixel(color, greentingerange) :
+    '''
+    Balance a color with a greenish tinge.
+    
+    Color must be (r,g,b,a)
+    
+    Roughly follows
+    http://marvinproject.sourceforge.net/en/examples/chromaKey.html
+    '''
+    (r, g, b, a) = color
+    if a == 0 :                     # do not modify if alpha is zero
+        return color
+    hsvcolor = rgb_to_hsv(r, g, b)  # need HSV form
+    if not colorinrange(hsvcolor, greentingerange) :   # if not in greenish tint range
+        pass #### return(color)               # no change
+    if (r*b) > 0 and (g*g) / (r*b) >= 1.5 :         # if greenish tinge
+        color = (min(int(r*1.4),255), g, min(int(b*1.4),255), a)   # constants from Marvin project
+    else :
+        color = (min(int(r*1.2),255), g, min(int(b*1.2),255), a)
+    return color                    # return modified color 
+    
+def balancegreentinge(img, greentingerange) :
+    '''
+    Remove greenish tinge in-place.
+    '''
+    pix = img.load()
+    (left, top, right, bottom) = img.getbbox()
+    for x in range(left, right) :   # apply pixel fix to all pixels
+        for y in range(top, bottom) :
+            pix[x,y] = balancegreentingepixel(pix[x,y],greentingerange)
 
 
 def combinestddev(x, y) :
@@ -371,6 +408,7 @@ class ImpostorFile:
         croppedimage.show()
         #   Clip green in HSV space
         greenrangehsv = (GREEN_RANGE_MIN_HSV, GREEN_RANGE_MAX_HSV)
+        greenishrangehsv = (GREENISH_RANGE_MIN_HSV, GREENISH_RANGE_MAX_HSV)
         mask = makegreenscreenmask(croppedimage, greenrangehsv)
         mask.show()                                         # ***TEMP***
         cleanmaskouteredge(mask, MAXCLEANDIST)              # clean up mask
@@ -379,6 +417,8 @@ class ImpostorFile:
         maskedimage.paste(croppedimage,mask)
         maskedimage.putalpha(mask)                          # add alpha channel
         maskedimage.show()                                  # after removing green screen
+        balancegreentinge(maskedimage, greenishrangehsv)
+        maskedimage.show()
         maskedimage.save("/tmp/testmask.png")               # ***TEMP***
         
            
