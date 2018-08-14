@@ -22,9 +22,9 @@ import math
 GREEN_RANGE_MIN_HSV = (100, 80, 70)                 # green screen range
 GREEN_RANGE_MAX_HSV = (185, 255, 255)
 
-GREENISH_RANGE_MIN_HSV = (100, 40, 35)              # green tinge range for cleanup
-GREENISH_RANGE_MIN_HSV = (100, 0, 0  )              # ***TEMP TEST***
-GREENISH_RANGE_MAX_HSV = (185, 255, 255)
+####GREENISH_RANGE_MIN_HSV = (100, 40, 35)              # green tinge range for cleanup
+GREENISH_RANGE_MIN_HSV = (60, 40, 35  )              # ***TEMP TEST***
+GREENISH_RANGE_MAX_HSV = (130, 255, 255)
 
 #   Useful functions
 
@@ -45,6 +45,8 @@ def insetrect(rect, inset) :
 def rgb_to_hsv(r, g, b) :
     '''
     RGB to HSV color space, only for green screening
+    
+    Inputs and outputs are all in 0..1 range.
     
     From    
     https://github.com/kimmobrunfeldt/howto-everything/blob/master/remove-green.md
@@ -88,13 +90,23 @@ def balancegreentingepixel(color, greentingerange) :
     
     Roughly follows
     http://marvinproject.sourceforge.net/en/examples/chromaKey.html
+    
+    ***NO GOOD*** This really works only on the Marvin test image.
+    It recognizes greenish pixels, but the fix just pumps up the r and b
+    channels a bit. That's only useful for cases like the white hair.
     '''
     (r, g, b, a) = color
     if a == 0 :                     # do not modify if alpha is zero
         return color
-    hsvcolor = rgb_to_hsv(r, g, b)  # need HSV form
+    ####hsvcolor = rgb_to_hsv(r, g, b)  # need HSV form
+    h_ratio, s_ratio, v_ratio = rgb_to_hsv(r / 255.0, g / 255.0, b / 255.0)
+    hsvcolor = (h_ratio * 360, s_ratio * 255, v_ratio * 255)
     if not colorinrange(hsvcolor, greentingerange) :   # if not in greenish tint range
-        pass #### return(color)               # no change
+        return(color)               # no change
+    ####return(0,0,255,255)            # ***TEMP*** force blue as test
+    ####return(g,g,g,255)               # ***TEMP** force grey as test
+    g = max(r,b)                    # cut down green  ***TEMP***
+    return(r,g,b,255)               # ***TEMP***
     if (r*b) > 0 and (g*g) / (r*b) >= 1.5 :         # if greenish tinge
         color = (min(int(r*1.4),255), g, min(int(b*1.4),255), a)   # constants from Marvin project
     else :
@@ -380,7 +392,7 @@ class ImpostorFile:
         scanright = right - int(width/4)
         xcenter = int((left+right)/2)
         ycenter = int((top+bottom)/2)                       # center of the image
-        thickness = 10 ###   10 ### 5                                       # minimum frame width
+        thickness = 10                                      # minimum frame width
         print("Test sweeps")
         xleft = self.sweeph(scantop, scanbot, left, xcenter, thickness, REDLIMITS)
         xright = self.sweeph(scantop, scanbot, right, xcenter, thickness, REDLIMITS)
