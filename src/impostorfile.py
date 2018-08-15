@@ -85,36 +85,6 @@ def colorinrange(color, colorrange) :
         return False            # out of bounds
     return True                     # color 
     
-def balancegreentingepixelold(color, greentingerange) :
-    '''
-    Balance a color with a greenish tinge.
-    
-    Color must be (r,g,b,a)
-    
-    Roughly follows
-    http://marvinproject.sourceforge.net/en/examples/chromaKey.html
-    
-    ***NO GOOD*** This really works only on the Marvin test image.
-    It recognizes greenish pixels, but the fix just pumps up the r and b
-    channels a bit. That's only useful for cases like the white hair.
-    '''
-    (r, g, b, a) = color
-    if a == 0 :                     # do not modify if alpha is zero
-        return color
-    ####hsvcolor = rgb_to_hsv(r, g, b)  # need HSV form
-    h_ratio, s_ratio, v_ratio = rgb_to_hsv(r / 255.0, g / 255.0, b / 255.0)
-    hsvcolor = (h_ratio * 360, s_ratio * 255, v_ratio * 255)
-    if not colorinrange(hsvcolor, greentingerange) :   # if not in greenish tint range
-        return(color)               # no change
-    ####return(0,0,255,255)            # ***TEMP*** force blue as test
-    ####return(g,g,g,255)               # ***TEMP** force grey as test
-    g = max(r,b)                    # cut down green  ***TEMP***
-    return(r,g,b,255)               # ***TEMP***
-    if (r*b) > 0 and (g*g) / (r*b) >= 1.5 :         # if greenish tinge
-        color = (min(int(r*1.4),255), g, min(int(b*1.4),255), a)   # constants from Marvin project
-    else :
-        color = (min(int(r*1.2),255), g, min(int(b*1.2),255), a)
-    return color                    # return modified color 
     
 def balancegreentingepixel(color, greentingerange) :
     '''
@@ -122,12 +92,8 @@ def balancegreentingepixel(color, greentingerange) :
     
     Color must be (r,g,b,a)
     
-    Roughly follows
-    http://marvinproject.sourceforge.net/en/examples/chromaKey.html
-    
-    ***NO GOOD*** This really works only on the Marvin test image.
-    It recognizes greenish pixels, but the fix just pumps up the r and b
-    channels a bit. That's only useful for cases like the white hair.
+    This is applied only to edge pixels, so we can be a bit more
+    aggressive than if we applied it to the whole image.
     '''
     (r, g, b, a) = color
     if a == 0 :                     # do not modify if alpha is zero
@@ -136,8 +102,8 @@ def balancegreentingepixel(color, greentingerange) :
     hsvcolor = (h_ratio * 360, s_ratio * 255, v_ratio * 255)
     if not colorinrange(hsvcolor, greentingerange) :   # if not in greenish tint range
         return(color)               # no change
-    g = max(r,b)                    # cut down green  ***TEMP***
-    return(r,g,b,255)               # ***TEMP***
+    g = max(r,b)                    # cut down green  
+    return(r,g,b,255)               # 
 
     
 def balancegreentinge(img, edgemask, greentingerange) :
@@ -145,7 +111,7 @@ def balancegreentinge(img, edgemask, greentingerange) :
     Remove greenish tinge in-place.
     '''
     pix = img.load()
-    msk = msk.load()                # only do areas with nonzero mask
+    msk = edgemask.load()                # only do areas with nonzero mask
     (left, top, right, bottom) = img.getbbox()
     for x in range(left, right) :   # apply pixel fix to all pixels
         for y in range(top, bottom) :
@@ -482,7 +448,7 @@ class ImpostorFile:
         maskedimage.show()                                  # after removing green screen
         edgemask = createedgemask(mask,EDGETHICKNESS)
         edgemask.show()                                     # ***TEMP***
-        balancegreentinge(maskedimage, greenishrangehsv, edgemask)
+        balancegreentinge(maskedimage, edgemask, greenishrangehsv)
         maskedimage.show()
         maskedimage.save("/tmp/testmask.png")               # ***TEMP***
             
