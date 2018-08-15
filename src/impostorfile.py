@@ -16,6 +16,8 @@
 import PIL
 import PIL.Image
 import PIL.ImageStat
+import PIL.ImageFilter
+import PIL.ImageOps
 import math
 
 #   Useful constants
@@ -24,6 +26,7 @@ GREEN_RANGE_MAX_HSV = (185, 255, 255)
 
 ####GREENISH_RANGE_MIN_HSV = (100, 40, 35)              # green tinge range for cleanup
 GREENISH_RANGE_MIN_HSV = (60, 40, 35  )              # ***TEMP TEST***
+GREENISH_RANGE_MIN_HSV = (60, 0, 0  )              # ***TEMP TEST***
 GREENISH_RANGE_MAX_HSV = (130, 255, 255)
 
 #   Useful functions
@@ -82,7 +85,7 @@ def colorinrange(color, colorrange) :
         return False            # out of bounds
     return True                     # color 
     
-def balancegreentingepixel(color, greentingerange) :
+def balancegreentingepixelold(color, greentingerange) :
     '''
     Balance a color with a greenish tinge.
     
@@ -113,17 +116,64 @@ def balancegreentingepixel(color, greentingerange) :
         color = (min(int(r*1.2),255), g, min(int(b*1.2),255), a)
     return color                    # return modified color 
     
-def balancegreentinge(img, greentingerange) :
+def balancegreentingepixel(color, greentingerange) :
+    '''
+    Balance a color with a greenish tinge.
+    
+    Color must be (r,g,b,a)
+    
+    Roughly follows
+    http://marvinproject.sourceforge.net/en/examples/chromaKey.html
+    
+    ***NO GOOD*** This really works only on the Marvin test image.
+    It recognizes greenish pixels, but the fix just pumps up the r and b
+    channels a bit. That's only useful for cases like the white hair.
+    '''
+    (r, g, b, a) = color
+    if a == 0 :                     # do not modify if alpha is zero
+        return color
+    h_ratio, s_ratio, v_ratio = rgb_to_hsv(r / 255.0, g / 255.0, b / 255.0)
+    hsvcolor = (h_ratio * 360, s_ratio * 255, v_ratio * 255)
+    if not colorinrange(hsvcolor, greentingerange) :   # if not in greenish tint range
+        return(color)               # no change
+    g = max(r,b)                    # cut down green  ***TEMP***
+    return(r,g,b,255)               # ***TEMP***
+
+    
+def balancegreentinge(img, edgemask, greentingerange) :
     '''
     Remove greenish tinge in-place.
     '''
     pix = img.load()
+    msk = msk.load()                # only do areas with nonzero mask
     (left, top, right, bottom) = img.getbbox()
     for x in range(left, right) :   # apply pixel fix to all pixels
         for y in range(top, bottom) :
+            m = msk[x,y]
+            if m == 0 :             # skip if not in edge mask
+                continue
             pix[x,y] = balancegreentingepixel(pix[x,y],greentingerange)
-
-
+            
+def invertwhite(n) :
+    '''
+    Invert full value in an image channel.
+    
+    Used in blanking out the interior of an alpha mask in createedgemask.
+    '''
+    if n > 254 :
+        return(0)
+    return n
+            
+def createedgemask(mask, distance) :
+    '''
+    Create a mask that includes only pixels within a
+    few pixels of the edge.
+    '''
+    blurmask = mask.filter(PIL.ImageFilter.GaussianBlur(distance))  # construct blurred mask
+    edgemask = PIL.Image.new("L",mask.size,0)       # empty alpha mask
+    edgemask.paste(blurmask, mask)                  # edges only
+    return edgemask.point(invertwhite)              # blank out interior of image
+    
 def combinestddev(x, y) :
     """
     Combine standard deviations. 
@@ -381,6 +431,7 @@ class ImpostorFile:
         ####GREENLIMITS = ((0,128,0),(128,255,128))              # color range where green dominates
         ####GREENTOL = 10                                       # green screen tolerance
         MAXCLEANDIST = 4                                    # go this far in from edge when cleaning edges
+        EDGETHICKNESS = 1.5                                 # range for cleaning out green edge pixels
         
         imgrect = self.inputrgb.getbbox()                   # bounds of image
         (left, top, right, bottom) = imgrect
@@ -429,10 +480,12 @@ class ImpostorFile:
         maskedimage.paste(croppedimage,mask)
         maskedimage.putalpha(mask)                          # add alpha channel
         maskedimage.show()                                  # after removing green screen
-        balancegreentinge(maskedimage, greenishrangehsv)
+        edgemask = createedgemask(mask,EDGETHICKNESS)
+        edgemask.show()                                     # ***TEMP***
+        balancegreentinge(maskedimage, greenishrangehsv, edgemask)
         maskedimage.show()
         maskedimage.save("/tmp/testmask.png")               # ***TEMP***
-        
+            
            
         
     def _framestddev(self, rect, innerrect) :
