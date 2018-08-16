@@ -181,6 +181,48 @@ def cleanmaskouteredge(mask, maxdist) :
                 pix[x,y] = 0
             else :
                 break 
+                
+def removegreenscreen(img, greenrangehsv, greenishrangehsv,maxcleandist, edgethickness) :
+    '''
+    Remove green screen from image
+    '''
+    mask = makegreenscreenmask(img, greenrangehsv)
+    mask.show()                                         # ***TEMP***
+    cleanmaskouteredge(mask, maxcleandist)              # clean up mask outer edge
+    mask.show()                                         # ***TEMP***
+    maskedimage = PIL.Image.new("RGBA",img.size)        # output is RGBA image
+    maskedimage.paste(img ,mask)                        # create RGBA transparent where green was
+    maskedimage.putalpha(mask)                          # add alpha channel
+    maskedimage.show()                                  # after removing green screen
+    edgemask = createedgemask(mask,edgethickness)
+    edgemask.show()                                     # ***TEMP***
+    balancegreentinge(maskedimage, edgemask, greenishrangehsv)
+    maskedimage.show()
+    return maskedimage                                  # output is RGBA image                          
+
+                
+#   Unit test
+
+def unittest() :
+    import glob
+    greenrangehsv = (GREEN_RANGE_MIN_HSV, GREEN_RANGE_MAX_HSV)
+    greenishrangehsv = (GREENISH_RANGE_MIN_HSV, GREENISH_RANGE_MAX_HSV)
+    MAXCLEANDIST = 4                                    # optional outer edge cleanup
+    EDGETHICKNESS = 1.5                                 # green noise area range
+    TESTFILES = "../testdata/greenscreen/*.jpg"
+    testfiles = glob.glob(TESTFILES)                    # get list of files to test
+    for testfile in testfiles :
+        print("File: " + testfile)                      # working on this file
+        img = PIL.Image.open(testfile)
+        img2 = removegreenscreen(img, greenrangehsv, greenishrangehsv,MAXCLEANDIST, EDGETHICKNESS)  # remove green screen
+        img2.show()
+    print("Test complete. Check the images.")
+    
+
+
+
+if __name__ == "__main__" :                             # if running standalone
+    unittest()
       
 
 
