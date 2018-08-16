@@ -105,6 +105,7 @@ class ImpostorFile:
         self.filename = filename                        # the filename
         self.inputimg = None                            # input image object
         self.inputrb = None                             # input image in RGB form
+        self.redframe = None                            # rectangle for clipping
         
     def readimage(self) :                               
         '''
@@ -254,42 +255,37 @@ class ImpostorFile:
             stddevgood = stddev                             # valid stddev
         print("Rect: ",innerrectgood, " Stddev: ", stddevgood) # ***TEMP***
         return (innerrectgood, stddevgood)                  # Returns rect
-     
-    def testsweeps(self) :
+        
+    def _findredframerect(self) :
         '''
-        Test and dump for sweep. Debug use only.
+        Find red frame rectangle around image.
+        
+        Returns (rect, stddev) or none.
         '''
         MAXALLOWEDDEV = 1.0                                 # max std dev of pixels, units 0..255
-        REDLIMITS = ((128,0,0),(255,63,63))                  # color range where red dominates
-        ####GREENLIMITS = ((0,128,0),(128,255,128))              # color range where green dominates
-        ####GREENTOL = 10                                       # green screen tolerance
-        MAXCLEANDIST = 4                                    # go this far in from edge when cleaning edges
-        EDGETHICKNESS = 1.5                                 # range for cleaning out green edge pixels
+        REDLIMITS = ((128,0,0),(255,63,63))                 # color range where red dominates
+        MINFRAMETHICKNESS = 10
         
-        imgrect = self.inputrgb.getbbox()                   # bounds of image
-        (left, top, right, bottom) = imgrect
-        height = bottom - top
-        width = right -left
-        scantop = top + int(height/4)                       # scan the middle half of the image
-        scanbot = bottom - int(height/4)
-        scanleft = left + int(width/4)
-        scanright = right - int(width/4)
-        xcenter = int((left+right)/2)
-        ycenter = int((top+bottom)/2)                       # center of the image
-        thickness = 10                                      # minimum frame width
-        print("Test sweeps")
-        xleft = self.sweeph(scantop, scanbot, left, xcenter, thickness, REDLIMITS)
-        xright = self.sweeph(scantop, scanbot, right, xcenter, thickness, REDLIMITS)
+        width = self.inputrgb.size[0]
+        height = self.inputrgb.size[1]
+        scantop = int(height/4)                             # scan the middle half of the image
+        scanbot = height - int(height/4)
+        scanleft = int(width/4)
+        scanright = width - int(width/4)
+        xcenter = int((width)/2)
+        ycenter = int((height)/2)                           # center of the image
+        xleft = self.sweeph(scantop, scanbot, 0, xcenter, MINFRAMETHICKNESS, REDLIMITS)
+        xright = self.sweeph(scantop, scanbot, width, xcenter, MINFRAMETHICKNESS, REDLIMITS)
         print("X frame limits: ", xleft, xright)
-        ytop = self.sweepv(scanleft, scanright, top, ycenter, thickness, REDLIMITS)
-        ybot = self.sweepv(scanleft, scanright, bottom, ycenter, thickness, REDLIMITS)
+        ytop = self.sweepv(scanleft, scanright, 0, ycenter, MINFRAMETHICKNESS, REDLIMITS)
+        ybot = self.sweepv(scanleft, scanright, height, ycenter, MINFRAMETHICKNESS, REDLIMITS)
         print("Y frame limits: ", ytop, ybot)
         if not (xright is not None and xleft is not None and ytop is not None and ybot is not None) :
             print("Failed to find frame limits.")
             return None
         # Validate frame
         outerrect = (xleft, ytop, xright, ybot)
-        innerrect = insetrect(outerrect, thickness)
+        innerrect = insetrect(outerrect, MINFRAMETHICKNESS)
         (color, stddev) = self._framestddev(outerrect, innerrect)
         print("Frame color: ",color, "Stddev: ",stddev)       
         if stddev > MAXALLOWEDDEV :
@@ -299,6 +295,18 @@ class ImpostorFile:
             return None
         #   Tighten frame around image
         (innerrectgood, stddev) = self.tightenframe(outerrect, innerrect, MAXALLOWEDDEV)
+        return(innerrectgood, stddev)
+        
+     
+    def testsweeps(self) :
+        '''
+        Test and dump for sweep. Debug use only.
+        '''
+        MAXCLEANDIST = 4                                    # go this far in from edge when cleaning edges
+        EDGETHICKNESS = 1.5                                 # range for cleaning out green edge pixels
+
+        #   Find frame around image
+        (innerrectgood, stddev) = self._findredframerect()     
         #   Do green screen
         croppedimage = self.inputrgb.crop(innerrectgood)     # crop out frame
         croppedimage.show()
@@ -307,9 +315,7 @@ class ImpostorFile:
         greenishrangehsv = (GREENISH_RANGE_MIN_HSV, GREENISH_RANGE_MAX_HSV)
         maskedimage = greenscreen.removegreenscreen(croppedimage, greenrangehsv, greenishrangehsv,MAXCLEANDIST, EDGETHICKNESS, False)  # remove green screen
         maskedimage.show()
-        maskedimage.save("/tmp/testmask.png")               # ***TEMP***
-            
-           
+        maskedimage.save("/tmp/testmask.png")               # ***TEMP*** 
         
     def _framestddev(self, rect, innerrect) :
         '''
