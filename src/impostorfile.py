@@ -6,7 +6,7 @@
 #   a billboard impostor.
 #
 #   Images must be surrounded by a solid-color frame and should be backed
-#   by a solid-color background. The images will be clipped to the frame
+#   by a solid-color background. The images will be cropped to the frame
 #   and the solid color background will be made transparent.
 #
 #   All the images are combined into one texture image, which is a power of
@@ -105,9 +105,9 @@ class ImpostorFile:
         self.filename = filename                        # the filename
         self.inputimg = None                            # input image object
         self.inputrb = None                             # input image in RGB form
-        self.redframe = None                            # rectangle for clipping
-        self.clippedimage = None                        # clipped image without frame
-        self.clippedbbox = None                         # bounding box of useful part of clipped image
+        self.redframe = None                            # rectangle for cropping
+        self.croppedimage = None                        # cropped image without frame
+        self.croppedbbox = None                         # bounding box of useful part of cropped image
         
     def readimage(self) :                               
         '''
@@ -311,7 +311,7 @@ class ImpostorFile:
         #   Do green screen
         croppedimage = self.inputrgb.crop(innerrectgood)     # crop out frame
         croppedimage.show()
-        #   Clip green in HSV space
+        #   crop green in HSV space
         greenrangehsv = (GREEN_RANGE_MIN_HSV, GREEN_RANGE_MAX_HSV)
         greenishrangehsv = (GREENISH_RANGE_MIN_HSV, GREENISH_RANGE_MAX_HSV)
         maskedimage = greenscreen.removegreenscreen(croppedimage, greenrangehsv, greenishrangehsv,MAXCLEANDIST, EDGETHICKNESS, False)  # remove green screen
@@ -367,21 +367,21 @@ class ImpostorFile:
         MAXCLEANDIST = 4                                    # go this far in from edge when cleaning edges
         EDGETHICKNESS = 1.5                                 # range for cleaning out green edge pixels
 
-        #   Find and clip red frame around image
+        #   Find and crop red frame around image
         (innerrectgood, stddev) = self._findredframerect()
         if innerrectgood is None :
             return False                                    # failed   
         #   Do green screen
         croppedimage = self.inputrgb.crop(innerrectgood)    # crop out frame
         ####croppedimage.show()
-        #   Clip green in HSV space
+        #   crop green in HSV space
         greenrangehsv = (GREEN_RANGE_MIN_HSV, GREEN_RANGE_MAX_HSV)
         greenishrangehsv = (GREENISH_RANGE_MIN_HSV, GREENISH_RANGE_MAX_HSV)
-        self.clippedimage = greenscreen.removegreenscreen(croppedimage, greenrangehsv, greenishrangehsv,MAXCLEANDIST, EDGETHICKNESS, False)  # remove green screen
-        self.clippedbbox = self.clippedimage.getbbox()      # useful part of clipped image
-        print("Image size: ",self.clippedimage.size, "  Useful part: ",self.clippedbbox)
-        self.clippedimage.show()                            # ***TEMP***        
-        self.clippedimage.save("/tmp/testmask.png")               # ***TEMP***
+        self.croppedimage = greenscreen.removegreenscreen(croppedimage, greenrangehsv, greenishrangehsv,MAXCLEANDIST, EDGETHICKNESS, False)  # remove green screen
+        self.croppedbbox = self.croppedimage.getbbox()      # useful part of cropped image
+        print("Image size: ",self.croppedimage.size, "  Useful part: ",self.croppedbbox)
+        self.croppedimage.show()                            # ***TEMP***        
+        self.croppedimage.save("/tmp/testmask.png")               # ***TEMP***
         return True 
 
         

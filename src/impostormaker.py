@@ -11,7 +11,7 @@
 #   a billboard impostor.
 #
 #   Images must be surrounded by a solid-color frame and should be backed
-#   by a solid-color background. The images will be clipped to the frame
+#   by a solid-color background. The images will be cropped to the frame
 #   and the solid color background will be made transparent.
 #
 #   All the images are combined into one texture image, which is a power of
@@ -32,8 +32,8 @@ class Impostor :
         print("File args: ", args.files)                # ***TEMP***
         self.filenames = args.files
         self.impostorfiles = []                         # impostor file object
-        self.cliprect = None                            # clipping rectangle for all images 
-        self.sizes = None                               # sizes of all images (pixels) before final clip
+        self.croprect = None                            # cropping rectangle for all images 
+        self.sizes = None                               # sizes of all images (pixels) before final crop
         
     #   Read in all files
     def readfiles(self) :
@@ -49,9 +49,9 @@ class Impostor :
                 return False                            # failed
         return True                                     # success
                 
-    def uniformclip(self) :
+    def uniformcrop(self) :
         '''
-        Calculate the clipping rectangle for all impostors.
+        Calculate the cropping rectangle for all impostors.
         
         This is the rectangle which contains all the bounding boxes of
         all the images, and also is centered in X.
@@ -59,10 +59,10 @@ class Impostor :
         Must also look at the size of each image. All images should be
         very close to the same size. If they are not, we have a problem.
         '''
-        bboxes = [impf.clippedbbox for impf in self.impostorfiles] # all bboxes
-        #   Size check. All clipped images must be close in size
+        bboxes = [impf.croppedbbox for impf in self.impostorfiles] # all bboxes
+        #   Size check. All cropped images must be close in size
         MAXALLOWEDSIZEMISMATCH = 0.05                   # allow 5% variation
-        sizes = [impf.clippedimage.size for impf in self.impostorfiles] # all sizes
+        sizes = [impf.croppedimage.size for impf in self.impostorfiles] # all sizes
         maxwidth = max([s[0] for s in sizes])
         maxheight = max([s[1] for s in sizes])
         for s in sizes :
@@ -71,7 +71,7 @@ class Impostor :
                 print("Sizes of images inside frame vary too much.")
                 return False
         self.sizes = (maxwidth, maxheight)              # size info for aspect ratio calc    
-        #   Compute initial clip rectangle
+        #   Compute initial crop rectangle
         wrect = (min([b[0] for b in bboxes]),
             min([b[1] for b in bboxes]), 
             max([b[2] for b in bboxes]), 
@@ -80,17 +80,27 @@ class Impostor :
         xleftsize = max(0,xcenter-wrect[0])             # limits of X relative to center
         xrightsize = min(maxwidth,wrect[2]-xcenter)
         xhalfsize = max(xleftsize, xrightsize)          # width relative to center
-        self.cliprect = (xcenter - xhalfsize, wrect[1], xcenter + xhalfsize, wrect[3]) # actual clipping rectangle
-        print("Final clipping rectangle: ",self.cliprect)   # ***TEMP***
-        clippedimages = [impf.clippedimage.crop(self.cliprect) for impf in self.impostorfiles]    # clip all images
-        print("Clipping succeeded.")                    # ***TEMP***
-        for img in clippedimages :
+        self.croprect = (xcenter - xhalfsize, wrect[1], xcenter + xhalfsize, wrect[3]) # actual cropping rectangle
+        print("Final cropping rectangle: ",self.croprect)   # ***TEMP***
+        croppedimages = [impf.croppedimage.crop(self.croprect) for impf in self.impostorfiles]    # crop all images
+        print("cropping succeeded.")                    # ***TEMP***
+        self.croppedimages = croppedimages              # save cropped images
+        for img in croppedimages :
             img.show()                                  # ***TEMP***
         return True
         
-            
-      
-  
+    def generateimpostor(self, imagesize) :
+        '''
+        Generate composite impostor image with each image
+        adjusted to the indicated size.  Images are stacked
+        vertically.
+        '''
+        cnt = len(self.croppedimages)                       # number of images to assemble
+        composite = PIL.Image.new("RGBA", (imagesize[0], imagesize[1]*cnt)) # working image
+        for n in range(cnt) :                               # for each image 
+            resized = self.croppedimages[n].resize(imagesize,PIL.Image.LANCZOS)  # resize image to fit
+            composite.paste(resized,(0,imagesize[1]*n))     # add to composite
+        return composite                                    # return complete impostor image       
 
 def parseargs() :
      #  Parse command line options
@@ -115,10 +125,13 @@ def main() :
     if not valid :
         print("Process files failed.")
         return False
-    valid = imp.uniformclip()
+    valid = imp.uniformcrop()
     if not valid :
-        print("Uniform clip failed.")
+        print("Uniform crop failed.")
         return False
+    finalimage = imp.generateimpostor((128,64))    # ***TEMP***
+    finalimage.show()
+    finalimage.save("/tmp/composite.png")           # ***TEMP***
 
 
      
