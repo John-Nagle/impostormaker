@@ -305,17 +305,7 @@ class ImpostorFile:
         #   Clip green in HSV space
         greenrangehsv = (GREEN_RANGE_MIN_HSV, GREEN_RANGE_MAX_HSV)
         greenishrangehsv = (GREENISH_RANGE_MIN_HSV, GREENISH_RANGE_MAX_HSV)
-        mask = greenscreen.makegreenscreenmask(croppedimage, greenrangehsv)
-        mask.show()                                         # ***TEMP***
-        greenscreen.cleanmaskouteredge(mask, MAXCLEANDIST)              # clean up mask
-        mask.show()                                         # ***TEMP***
-        maskedimage = PIL.Image.new("RGBA",croppedimage.size)
-        maskedimage.paste(croppedimage,mask)
-        maskedimage.putalpha(mask)                          # add alpha channel
-        maskedimage.show()                                  # after removing green screen
-        edgemask = greenscreen.createedgemask(mask,EDGETHICKNESS)
-        edgemask.show()                                     # ***TEMP***
-        greenscreen.balancegreentinge(maskedimage, edgemask, greenishrangehsv)
+        maskedimage = greenscreen.removegreenscreen(croppedimage, greenrangehsv, greenishrangehsv,MAXCLEANDIST, EDGETHICKNESS, False)  # remove green screen
         maskedimage.show()
         maskedimage.save("/tmp/testmask.png")               # ***TEMP***
             

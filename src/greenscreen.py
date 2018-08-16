@@ -90,9 +90,8 @@ def balancegreentingepixel(color, greentingerange) :
     hsvcolor = (h_ratio * 360, s_ratio * 255, v_ratio * 255)
     if not colorinrange(hsvcolor, greentingerange) :   # if not in greenish tint range
         return(color)               # no change
-    ####g = max(r,b)                    # cut down green
     g = min(g, int((r+b)/2))        # make non green
-    return(r,g,b,255)               # 
+    return(r,g,b,128)               # return at half alpha
 
     
 def balancegreentinge(img, edgemask, greentingerange) :
