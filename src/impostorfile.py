@@ -106,6 +106,8 @@ class ImpostorFile:
         self.inputimg = None                            # input image object
         self.inputrb = None                             # input image in RGB form
         self.redframe = None                            # rectangle for clipping
+        self.clippedimage = None                        # clipped image without frame
+        self.clippedbbox = None                         # bounding box of useful part of clipped image
         
     def readimage(self) :                               
         '''
@@ -266,8 +268,7 @@ class ImpostorFile:
         REDLIMITS = ((128,0,0),(255,63,63))                 # color range where red dominates
         MINFRAMETHICKNESS = 10
         
-        width = self.inputrgb.size[0]
-        height = self.inputrgb.size[1]
+        (width, height) = self.inputrgb.size                # width and height of image
         scantop = int(height/4)                             # scan the middle half of the image
         scanbot = height - int(height/4)
         scanleft = int(width/4)
@@ -282,7 +283,7 @@ class ImpostorFile:
         print("Y frame limits: ", ytop, ybot)
         if not (xright is not None and xleft is not None and ytop is not None and ybot is not None) :
             print("Failed to find frame limits.")
-            return None
+            return (None,None)
         # Validate frame
         outerrect = (xleft, ytop, xright, ybot)
         innerrect = insetrect(outerrect, MINFRAMETHICKNESS)
@@ -292,7 +293,7 @@ class ImpostorFile:
             print("Frame area is not uniform enough.")
             croppedrgb = self.inputrgb.crop(outerrect)      # extract rectangle of interest
             croppedrgb.show()                               # show failed frame
-            return None
+            return (None,None)
         #   Tighten frame around image
         (innerrectgood, stddev) = self.tightenframe(outerrect, innerrect, MAXALLOWEDDEV)
         return(innerrectgood, stddev)
@@ -357,17 +358,31 @@ class ImpostorFile:
         stats = PIL.ImageStat.Stat(croppedrgb)          # image statistics
         return(stats.count, stats.mean, stats.stddev)
                
-    def findframe(self, rect=None, minthickness=10) :
+    def extract(self) :
         '''
-        Find solid color frame within rect
+        Extract area of interest. Remove frame, remove green background
         
-        The frame must be at least minthickness thick.
+        Returns true if success
         '''
-        if rect is None :                                   # if no rect given
-            rect = self.inputrgb.getbbox()                  # use entire image
-        if minthickness < 2 :                               # frame must be at least two pixels
-            return None                                     # not meaningful
-        #   ***MORE***
+        MAXCLEANDIST = 4                                    # go this far in from edge when cleaning edges
+        EDGETHICKNESS = 1.5                                 # range for cleaning out green edge pixels
+
+        #   Find and clip red frame around image
+        (innerrectgood, stddev) = self._findredframerect()
+        if innerrectgood is None :
+            return False                                    # failed   
+        #   Do green screen
+        croppedimage = self.inputrgb.crop(innerrectgood)    # crop out frame
+        ####croppedimage.show()
+        #   Clip green in HSV space
+        greenrangehsv = (GREEN_RANGE_MIN_HSV, GREEN_RANGE_MAX_HSV)
+        greenishrangehsv = (GREENISH_RANGE_MIN_HSV, GREENISH_RANGE_MAX_HSV)
+        self.clippedimage = greenscreen.removegreenscreen(croppedimage, greenrangehsv, greenishrangehsv,MAXCLEANDIST, EDGETHICKNESS, False)  # remove green screen
+        self.clippedbbox = self.clippedimage.getbbox()      # useful part of clipped image
+        print("Image size: ",self.clippedimage.size, "  Useful part: ",self.clippedbbox)
+        self.clippedimage.show()                            # ***TEMP***        
+        self.clippedimage.save("/tmp/testmask.png")               # ***TEMP***
+        return True 
 
         
 

@@ -32,19 +32,64 @@ class Impostor :
         print("File args: ", args.files)                # ***TEMP***
         self.filenames = args.files
         self.impostorfiles = []                         # impostor file object
+        self.cliprect = None                            # clipping rectangle for all images 
+        self.sizes = None                               # sizes of all images (pixels) before final clip
         
     #   Read in all files
     def readfiles(self) :
         for name in self.filenames :
             ifile = impostorfile.ImpostorFile(self, name)            # object for this input image
             ifile.readimage()                           # read the image
-            if self.options.verbose :
-                ####ifile.show()                            # show image if verbose
-                ifile.testsweeps()
-                return                                  # ***TEMP***
             self.impostorfiles.append(ifile)            # accumulate image objects
             
+    def processfiles(self) :
+        for impf in self.impostorfiles :                # for all files
+            valid = impf.extract()                      # extract useful part of file
+            if not valid :
+                return False                            # failed
+        return True                                     # success
+                
+    def uniformclip(self) :
+        '''
+        Calculate the clipping rectangle for all impostors.
         
+        This is the rectangle which contains all the bounding boxes of
+        all the images, and also is centered in X.
+        
+        Must also look at the size of each image. All images should be
+        very close to the same size. If they are not, we have a problem.
+        '''
+        bboxes = [impf.clippedbbox for impf in self.impostorfiles] # all bboxes
+        #   Size check. All clipped images must be close in size
+        MAXALLOWEDSIZEMISMATCH = 0.05                   # allow 5% variation
+        sizes = [impf.clippedimage.size for impf in self.impostorfiles] # all sizes
+        maxwidth = max([s[0] for s in sizes])
+        maxheight = max([s[1] for s in sizes])
+        for s in sizes :
+            if ((maxwidth - s[0]) / maxwidth > MAXALLOWEDSIZEMISMATCH or 
+                (maxheight - s[1]) / maxheight > MAXALLOWEDSIZEMISMATCH) :
+                print("Sizes of images inside frame vary too much.")
+                return False
+        self.sizes = (maxwidth, maxheight)              # size info for aspect ratio calc    
+        #   Compute initial clip rectangle
+        wrect = (min([b[0] for b in bboxes]),
+            min([b[1] for b in bboxes]), 
+            max([b[2] for b in bboxes]), 
+            max([b[3] for b in bboxes]))
+        xcenter = int(maxwidth/2)                       # center of X dimension
+        xleftsize = max(0,xcenter-wrect[0])             # limits of X relative to center
+        xrightsize = min(maxwidth,wrect[2]-xcenter)
+        xhalfsize = max(xleftsize, xrightsize)          # width relative to center
+        self.cliprect = (xcenter - xhalfsize, wrect[1], xcenter + xhalfsize, wrect[3]) # actual clipping rectangle
+        print("Final clipping rectangle: ",self.cliprect)   # ***TEMP***
+        clippedimages = [impf.clippedimage.crop(self.cliprect) for impf in self.impostorfiles]    # clip all images
+        print("Clipping succeeded.")                    # ***TEMP***
+        for img in clippedimages :
+            img.show()                                  # ***TEMP***
+        return True
+        
+            
+      
   
 
 def parseargs() :
@@ -66,6 +111,15 @@ def main() :
     args = parseargs()                              # parse and check options
     imp = Impostor(args)                            # create main impostor object
     imp.readfiles()                                 # read in all images
+    valid = imp.processfiles()
+    if not valid :
+        print("Process files failed.")
+        return False
+    valid = imp.uniformclip()
+    if not valid :
+        print("Uniform clip failed.")
+        return False
+
 
      
 #   Run program
