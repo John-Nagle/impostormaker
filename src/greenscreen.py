@@ -90,7 +90,8 @@ def balancegreentingepixel(color, greentingerange) :
     hsvcolor = (h_ratio * 360, s_ratio * 255, v_ratio * 255)
     if not colorinrange(hsvcolor, greentingerange) :   # if not in greenish tint range
         return(color)               # no change
-    g = max(r,b)                    # cut down green  
+    ####g = max(r,b)                    # cut down green
+    g = min(g, int((r+b)/2))        # make non green
     return(r,g,b,255)               # 
 
     
@@ -131,7 +132,7 @@ def createedgemask(mask, distance) :
 def makegreenscreenmask(img, colorrange) :
     '''
     Make green screen mask. Colorrange is the range of green to be masked.
-    Colorrange is in HSV form,, but the image is RGB.
+    Colorrange is in HSV form, but the image is RGB.
     '''
     (min_h, min_s, min_v),(max_h, max_s, max_v) = colorrange    # HSV bounds
     pix = img.load()                                    # force into memory
@@ -182,22 +183,23 @@ def cleanmaskouteredge(mask, maxdist) :
             else :
                 break 
                 
-def removegreenscreen(img, greenrangehsv, greenishrangehsv,maxcleandist, edgethickness) :
+def removegreenscreen(img, greenrangehsv, greenishrangehsv,maxcleandist, edgethickness, verbose=False) :
     '''
     Remove green screen from image
     '''
     mask = makegreenscreenmask(img, greenrangehsv)
-    mask.show()                                         # ***TEMP***
     cleanmaskouteredge(mask, maxcleandist)              # clean up mask outer edge
-    mask.show()                                         # ***TEMP***
+    if verbose :
+        mask.show()
     maskedimage = PIL.Image.new("RGBA",img.size)        # output is RGBA image
     maskedimage.paste(img ,mask)                        # create RGBA transparent where green was
     maskedimage.putalpha(mask)                          # add alpha channel
-    maskedimage.show()                                  # after removing green screen
+    if verbose :
+        maskedimage.show()                              # after removing green screen
     edgemask = createedgemask(mask,edgethickness)
-    edgemask.show()                                     # ***TEMP***
+    if verbose :
+        edgemask.show()
     balancegreentinge(maskedimage, edgemask, greenishrangehsv)
-    maskedimage.show()
     return maskedimage                                  # output is RGBA image                          
 
                 
@@ -214,7 +216,7 @@ def unittest() :
     for testfile in testfiles :
         print("File: " + testfile)                      # working on this file
         img = PIL.Image.open(testfile)
-        img2 = removegreenscreen(img, greenrangehsv, greenishrangehsv,MAXCLEANDIST, EDGETHICKNESS)  # remove green screen
+        img2 = removegreenscreen(img, greenrangehsv, greenishrangehsv,MAXCLEANDIST, EDGETHICKNESS, False)  # remove green screen
         img2.show()
     print("Test complete. Check the images.")
     
