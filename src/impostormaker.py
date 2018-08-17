@@ -31,6 +31,7 @@ class Impostor :
         self.options = args
         print("File args: ", args.files)                # ***TEMP***
         self.filenames = args.files
+        self.framesize = (args.width, args.height)      # size of image frame in meters
         self.impostorfiles = []                         # impostor file object
         self.croprect = None                            # cropping rectangle for all images 
         self.sizes = None                               # sizes of all images (pixels) before final crop
@@ -48,6 +49,15 @@ class Impostor :
             if not valid :
                 return False                            # failed
         return True                                     # success
+        
+    def calcimpostorsize(self) :
+        '''
+        Calculate size of final impostor object in meters
+        '''
+        croppedsize = (self.croprect[2] - self.croprect[0], self.croprect[3] - self.croprect[1]) # size of cropped image
+        reductionratio = (croppedsize[0] / self.sizes[0], croppedsize[1] / self.sizes[1]) # reduced size of cropped version
+        finalsize = (reductionratio[0]*self.framesize[0], reductionratio[1]*self.framesize[1]) # size of actual impostor in meters
+        return finalsize
                 
     def uniformcrop(self) :
         '''
@@ -131,6 +141,7 @@ def main() :
         return False
     finalimage = imp.generateimpostor((128,64))    # ***TEMP***
     finalimage.show()
+    print("Final impostor size (meters): %1.3f, %1.3f" % imp.calcimpostorsize()) # show final size in meters
     finalimage.save("/tmp/composite.png")           # ***TEMP***
 
 
