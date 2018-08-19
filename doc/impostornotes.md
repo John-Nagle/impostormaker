@@ -3,6 +3,8 @@
 Animats Resident
 August, 2018
 
+*This summarizes a conversation with Beq Janus on August 18, 2018.*
+
 ## Introduction
 Second Life is a virtual world with content created independently by thousands of people.
 Second Life viewers must deal with that content and present it to the user efficiently. 
