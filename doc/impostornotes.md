@@ -56,6 +56,8 @@ With the default Firestorm level of detail settings, objects have dropped to "lo
 and the impostor usually looks better than the standard low level of detail model. An in-world demo of this is
 being set up, and visiting that demo area is the way to see how this works.
 
+The current impostor images are 128x64 pixels for each view, or 128x512 for the entire impostor. 
+
 (SLURL goes here.)
 
 To make impostor images, a picture-taking fixture is used. This rotates an object on a turntable in front of
@@ -87,4 +89,37 @@ This approach implies some restrictions. Mesh geometry and textures must be uplo
 generator gets to use both. Objects with impostors cannot be changed much once uploaded. Color changes and removal
 or addition of links will not be reflected in the impostor. So this is for no-modify objects without color change
 menus. 
+
+For initial test purposes, impostors could be created entirely in Blender and uploaded as COLLADA files.
+This is labor-intensive but useful for debugging.
+
+#### Storing an impostor
+For test purposes, an impostor would look like a lowest-level of detail model consisting of a flat image on one face
+composed of two triangles centered at the object origin.
+A standard viewer would display it as a flat image showing the object from one point of view.
+A modified viewer would recognize this special case, perhaps by some name convention, 
+and apply the special impostor shader, which would reposition the object vertices and UV coordinates to get the impostor effect.
+So this would not look unacceptable in existing viewers, especially in comparision to the lowest level of detail models currently constructed
+by the decimator in the uploader.
+
+The document for the uploader indicates that it is possible to upload multiple textures for a single mesh model.
+While each level of detail uses the same UV map, there's no requirement that each mesh have triangles for the entire UV map. So it should be possible to have a separate texture
+for the impostor. (TEST THIS.)
+
+#### Using an impostor
+Once we have impostors working, they can be used more freely than low-LOD models. Objects with an impostor available can be dropped to impostor level of detail at distances as short as 20 meters.
+Level of detail policy can be adjusted accordingly. A roughly uniform texture pixel to screen pixel ratio for everything on screen is a reasonable approach. 
+
+#### Summary
+It looks like this can be tried without breaking existing content, producing bad images in existing viewers, or making changes to the asset storage system. So it's not a breaking change.
+
+## Further directions
+#### Background generation of impostors
+While beyond the scope of this note, the potential exists to generate impostors for existing objects as a background task running on SL-operated servers. That would speed up the display of old content. Changing an object would invalidate the impostor, which would have to be re-generated, much like the way pathfinding mesh is re-generated.
+
+#### Large impostors
+With background generation, there is the potential to generate large impostors, for entire parcels or even entire sims. Distant parcels could be replaced by impostors, and distant sims replaced by a ground mesh with a low-resolution texture. Google Earth does something similar. The user would see the Second Life world out to the horizon, no longer limited by draw distance. 
+
+## Conclusion
+There's considerable scope for speeding up Second Life in this way. It doesn't have to be slow just because it has complex user-generated content. The same techniques that make today's massively multiplayer online games look good while running fast can be retrofitted to Second Life. 
 
