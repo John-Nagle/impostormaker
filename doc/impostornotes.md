@@ -117,10 +117,42 @@ It looks like this can be tried without breaking existing content, producing bad
 
 ## Further directions
 #### Background generation of impostors
-While beyond the scope of this note, the potential exists to generate impostors for existing objects as a background task running on SL-operated servers. That would speed up the display of old content. Changing an object would invalidate the impostor, which would have to be re-generated, much like the way pathfinding mesh is re-generated.
+While beyond the scope of this note, the potential exists to generate impostors for existing objects as a background task running on SL-operated servers.
+That would speed up the display of old content. Changing an object would invalidate the impostor, which would have to be re-generated, much like the way pathfinding mesh is re-generated.
 
 #### Large impostors
-With background generation, there is the potential to generate large impostors, for entire parcels or even entire sims. Distant parcels could be replaced by impostors, and distant sims replaced by a ground mesh with a low-resolution texture. Google Earth does something similar. The user would see the Second Life world out to the horizon, no longer limited by draw distance. 
+With background generation, there is the potential to generate large impostors, for entire parcels or even entire sims. 
+Distant parcels could be replaced by impostors, and distant sims replaced by a ground mesh with a low-resolution texture. Google Earth does something similar.
+The user would see the Second Life world out to the horizon, no longer limited by draw distance.
+An interim step would be to draw the Second Life map, rather than fake water, for distant regions. That would be a huge win for aviation in SL. Pilots could reliably see the ground.
+
+#### Level of detail policy
+What to render first, and at what level of detail? 
+
+The viewer's texture system has extensive capabiilties for choosing which textures to fetch first, at what resolution to fetch them, at what resolution to send them to the graphics card, and
+at what MIP-mapped level of detail to display them on screen.  The policy behind this is spread over the texture code; there is no centralized policy module in the viewer.
+The level of detail system is more under user and content creator control. Draw distance and level of detail thresholds are set by the user. The heavy machinery to decide what to 
+render at what resolution is already in place. But it is not automatic.
+
+It should just do the right thing for common use cases. The three hard cases above, "Club", "Shopping", and "Driving", give us guidance on what the viewer should be trying to do.
+
+Some basic metrics of recent user behavior would help. "How far has the user moved in the last 5 seconds" and "how much of the visual sphere area has the user looked at in the last 5
+seconds" are useful metrics. Small values of "how far" and small values of "look area" indicate focus on a specific area. Go for maximum visual quality for near objects in that direction.
+That handles the "shopping" use case. This is a classic Second Life irritation - you're standing directly in front of something you really want to see clearly, and *it won't come into focus*.
+
+Large values of "how far" and small values of "look area" indicate "Driving" mode. Go for adequate visual quality in the look/move direction for as much distance as possible.
+Minimize visual quality to the side and rear, and give a low priority to loading texture detail and geometry for things you're going to pass before they render fully. It's common in driving
+for the road ahead not to be fully rendered. In flying, the runway ahead may not be visible. That's seriously annoying.
+
+Small values of "how far" and large values of "look area" indicate looking around a space. Go for uniform visual quality in all directions, and gradually bring distant objects up to
+high quality. This is the "Club" use case.
+
+The goal is to do what the user implicitly wants, without them having to worry about it.
+
+Along this line, the viewer should manage frame rate actively. If frame rate drops below some threshold, visual quality should automatically be reduced to bring it back up. Cut back draw distance,
+go to lower detailed textures, use impostors at shorter distances, disable shadows, and get the frame rate back up. The user can now set a maximum frame rate, but not a minimum. 
+The default minimum might be 20 to 25 FPS, comparable to 24FPS film projection.  This is well below modern video game standards. Games today are running in the 60-90 FPS range.
+New users expect a screen that doesn't visibly stutter. 
 
 ## Conclusion
 There's considerable scope for speeding up Second Life in this way. It doesn't have to be slow just because it has complex user-generated content. The same techniques that make today's massively multiplayer online games look good while running fast can be retrofitted to Second Life. 
