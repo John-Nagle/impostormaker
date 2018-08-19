@@ -28,6 +28,63 @@ impostors to keep the display frame rate up. A few avatars, the nearest ones,
 are rendered fully. This compromise makes it possible to have 10 to 40 avatars
 in the same area without the viewer frame rate dropping to single digit frame rates.
 
-There is no comparable system for objects. 
+There is no comparable system for objects.  This note is about creating one.
 
+## Use cases
+For design purposes, a few use cases are helpful. Most Second Life users have experienced these.
+Most of these cause severely reduced frame rate today.
+
+1. (CLUB) A crowded club, with about 30 avatars in motion. Background detail is not too important.
+
+2. (SHOPPING) A shopping area with a large number of highly detailed items. Users want to look around 
+and find items at a distance, then approach them and look at the details.
+
+3. (DRIVING) Moderately fast driving, 50-100 km/hr. Users want to see where they are going, and 
+sightsee their surroudings at a distance, but not examine them in detail.
+
+## Making and using object impostors
+
+### First demo
+As a demo, to test impostor visual quality, a demo has been created. A simple 2-triangle billboard impostor
+object turns to face the nearest avatar, and the appropriate texture is selected for display.
+This is controlled by a Linden Scripting Language script, and works for only the nearest avatar.
+This lets us see in world what impostors would look like, and gives a sense of how close an avatar can get
+before the flatness of the impostor image becomes obvious.
+
+Initial tests indicate that quite simple impostors of furniture-sized opjects look acceptable beyond 20-25 meters.
+With the default Firestorm level of detail settings, objects have dropped to "low" level of detail at that point,
+and the impostor usually looks better than the standard low level of detail model. An in-world demo of this is
+being set up, and visiting that demo area is the way to see how this works.
+
+(SLURL goes here.)
+
+To make impostor images, a picture-taking fixture is used. This rotates an object on a turntable in front of
+a green screen, allowing the operator to take the set of pictures needed to make an impostor. A program in
+Python clips the frame from each image, removes the green screen, resizes the image, and creates a single
+texture ready for Second Life upload. 
+
+The demo is a proof of concept. It lets people see what this would look like if implemented in the viewer.
+
+### Sketch of a design for an in-viewer implementation
+All this can probably be implemented in a basic form entirely within a viewer. The viewer needs to know
+when the lowest level of detail of an object represents an impostor. 
+
+#### Displaying an impostor
+If possible, impostor display should be done by a vertex shader, with the graphics processor doing most of the work.
+
+(MORE TO COME. NEED ADVICE FROM A SHADER EXPERT.)
+
+#### Creating an impostor
+Impostors would be created in advance, during mesh upload.  The object would be uploaded with its textures, a
+feature currently present but not always used. The user would select "Impostor" for a level of detail below
+the highest, and the uploader would render the object internally, taking the necessary images and combining
+them into one, just like our test fixture does now. Since OpenGL can render an image with an alpha channel, there is
+no need for a green screen to clip the image from the background. OpenGL can render an orthographic image,
+as if taken from infinite distance, which is what's needed for an impostor. There's also the possibiilty of
+generating normal, specular, and depth maps at this time, but those are future enhancements. 
+
+This approach implies some restrictions. Mesh geometry and textures must be uploaded at the same time, so the impostor
+generator gets to use both. Objects with impostors cannot be changed much once uploaded. Color changes and removal
+or addition of links will not be reflected in the impostor. So this is for no-modify objects without color change
+menus. 
 
