@@ -130,11 +130,11 @@ An interim step would be to draw the Second Life map, rather than fake water, fo
 What to render first, and at what level of detail? 
 
 The viewer's texture system has extensive capabiilties for choosing which textures to fetch first, at what resolution to fetch them, at what resolution to send them to the graphics card, and
-at what MIP-mapped level of detail to display them on screen.  The policy behind this is spread over the texture code; there is no centralized policy module in the viewer.
-The level of detail system is more under user and content creator control. Draw distance and level of detail thresholds are set by the user. The heavy machinery to decide what to 
+at what MIP-mapped level of detail to display them on screen.  The policy behind this is spread across the texture code. There is no centralized policy module in the viewer.
+The level of detail system is mostly under user and content creator control. Draw distance and level of detail thresholds are set by the user. The heavy machinery to decide what to 
 render at what resolution is already in place. But it is not automatic.
 
-It should just do the right thing for common use cases. The three hard cases above, "Club", "Shopping", and "Driving", give us guidance on what the viewer should be trying to do.
+It should do the right thing for common use cases. The three hard cases above, "Club", "Shopping", and "Driving", give us guidance on what the viewer should be trying to do.
 
 Some basic metrics of recent user behavior would help. "How far has the user moved in the last 5 seconds" and "how much of the visual sphere area has the user looked at in the last 5
 seconds" are useful metrics. Small values of "how far" and small values of "look area" indicate focus on a specific area. Go for maximum visual quality for near objects in that direction.
@@ -155,5 +155,6 @@ The default minimum might be 20 to 25 FPS, comparable to 24FPS film projection. 
 New users expect a screen that doesn't visibly stutter. 
 
 ## Conclusion
-There's considerable scope for speeding up Second Life in this way. It doesn't have to be slow just because it has complex user-generated content. The same techniques that make today's massively multiplayer online games look good while running fast can be retrofitted to Second Life. 
+There's considerable scope for speeding up Second Life in this way. It doesn't have to be slow just because it has complex user-generated content.
+The same techniques that make today's massively multiplayer online games look good while running fast can be retrofitted to Second Life. 
 
