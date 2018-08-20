@@ -24,6 +24,28 @@ import PIL
 import PIL.Image
 import impostorfile
 
+def stringcommon(a,b) :
+    '''
+    Returns number of characters a and b have in common
+    from the beginning
+    '''
+    cnt = min(len(a),len(b))
+    for i in range (cnt) :
+        if not a[i] == b[i] :
+            return(i)               # number of chars in common
+    return(cnt)
+    
+def stringscommon(lst) :
+    '''
+    Given a list of strings, return the portion of
+    the string common to all
+    '''
+    if len(lst) == 0 :
+        return None
+    cnt = min([stringcommon(lst[0],s) for s in lst])
+    return lst[0][0:cnt]
+
+
 class Impostor :
 
     #   Constructor
@@ -49,6 +71,22 @@ class Impostor :
             if not valid :
                 return False                            # failed
         return True                                     # success
+        
+    def outfilename(self, name=None) :
+        '''
+        Generate output file name
+        
+        Default uses the common part of all the input file names,
+        including the directory.
+        '''
+        if name is None :
+            s = stringscommon(self.filenames)
+            sparts = s.split('/')
+            sparts[-1] = "impostor-" + sparts[-1]
+            s = '/'.join(sparts)
+        else :
+            s = name
+        return s + ".png"
         
     def calcimpostorsize(self) :
         '''
@@ -125,12 +163,16 @@ def parseargs() :
      args = parser.parse_args()
      #  Option validation
      return args
+
+
      
 #   Main program
 def main() :
     args = parseargs()                              # parse and check options
     imp = Impostor(args)                            # create main impostor object
     imp.readfiles()                                 # read in all images
+    outfile = imp.outfilename()
+    print("Will create ",outfile)
     valid = imp.processfiles()
     if not valid :
         print("Process files failed.")
@@ -142,7 +184,9 @@ def main() :
     finalimage = imp.generateimpostor((128,64))    # ***TEMP***
     finalimage.show()
     print("Final impostor size (meters): %1.3f, %1.3f" % imp.calcimpostorsize()) # show final size in meters
-    finalimage.save("/tmp/composite.png")           # ***TEMP***
+    print("Creating ",outfile)
+    finalimage.save(outfile)                        # Generate output file
+    ####finalimage.save("/tmp/composite.png")           # ***TEMP***
 
 
      
