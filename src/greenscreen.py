@@ -182,7 +182,7 @@ def cleanmaskouteredge(mask, maxdist) :
             else :
                 break 
                 
-def removegreenscreen(img, greenrangehsv, greenishrangehsv,maxcleandist, edgethickness, verbose=False) :
+def removegreenscreen(img, greenrangehsv, greenishrangehsv, maxcleandist, edgethickness, verbose=False) :
     '''
     Remove green screen from image
     '''
@@ -191,7 +191,7 @@ def removegreenscreen(img, greenrangehsv, greenishrangehsv,maxcleandist, edgethi
     if verbose :
         mask.show()
     maskedimage = PIL.Image.new("RGBA",img.size)        # output is RGBA image
-    maskedimage.paste(img ,mask)                        # create RGBA transparent where green was
+    maskedimage.paste(img, mask)                        # create RGBA transparent where green was
     maskedimage.putalpha(mask)                          # add alpha channel
     if verbose :
         maskedimage.show()                              # after removing green screen
@@ -215,7 +215,7 @@ def unittest() :
     for testfile in testfiles :
         print("File: " + testfile)                      # working on this file
         img = PIL.Image.open(testfile)
-        img2 = removegreenscreen(img, greenrangehsv, greenishrangehsv,MAXCLEANDIST, EDGETHICKNESS, False)  # remove green screen
+        img2 = removegreenscreen(img, greenrangehsv, greenishrangehsv, MAXCLEANDIST, EDGETHICKNESS, False)  # remove green screen
         img2.show()
     print("Test complete. Check the images.")
     

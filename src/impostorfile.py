@@ -364,7 +364,7 @@ class ImpostorFile:
         
         Returns true if success
         '''
-        MAXCLEANDIST = 4                                    # go this far in from edge when cleaning edges
+        MAXCLEANDIST = 8                                    # go this far in from edge when cleaning edges
         EDGETHICKNESS = 1.5                                 # range for cleaning out green edge pixels
 
         #   Find and crop red frame around image
