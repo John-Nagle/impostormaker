@@ -90,11 +90,17 @@ class Impostor :
         
     def calcimpostorsize(self) :
         '''
-        Calculate size of final impostor object in meters
+        Calculate size of final impostor object in meters.
+        
+        self.sizes represents the pixel size of a rectangle whose dimensions are framesize.
         '''
+        metersperpixel = (self.framesize[0] / self.sizes[0], self.framesize[1] / self.sizes[1])  # meters per pixel
         croppedsize = (self.croprect[2] - self.croprect[0], self.croprect[3] - self.croprect[1]) # size of cropped image
-        reductionratio = (croppedsize[0] / self.sizes[0], croppedsize[1] / self.sizes[1]) # reduced size of cropped version
-        finalsize = (reductionratio[0]*self.framesize[0], reductionratio[1]*self.framesize[1]) # size of actual impostor in meters
+        ####reductionratio = (croppedsize[0] / self.sizes[0], croppedsize[1] / self.sizes[1]) # reduced size of cropped version
+        ####finalsizeold = (reductionratio[0]*self.framesize[0], reductionratio[1]*self.framesize[1]) # size of actual impostor in meters
+        finalsize = (metersperpixel[0]*croppedsize[0], metersperpixel[1]*croppedsize[1])    # size of image after cropping
+        print("Cropped size in pixels: ", croppedsize, "  Frame size (m): ", self.framesize, "  Frame size (px):", self.sizes)    # ***TEMP***
+        ####print("Old final size: ", finalsizeold, "  New final size: ", finalsize)
         return finalsize
                 
     def uniformcrop(self) :
@@ -131,7 +137,6 @@ class Impostor :
         self.croprect = (xcenter - xhalfsize, wrect[1], xcenter + xhalfsize, wrect[3]) # actual cropping rectangle
         print("Final cropping rectangle: ",self.croprect)   # ***TEMP***
         croppedimages = [impf.croppedimage.crop(self.croprect) for impf in self.impostorfiles]    # crop all images
-        print("cropping succeeded.")                    # ***TEMP***
         self.croppedimages = croppedimages              # save cropped images
         for img in croppedimages :
             img.show()                                  # ***TEMP***
